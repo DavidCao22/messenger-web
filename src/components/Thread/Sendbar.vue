@@ -13,11 +13,11 @@
             <input id="attach" class="mdl-button mdl-js-button mdl-button--icon attach-button" readonly tabindex="-1" @click.prevent="attachMedia"/>
             <input id="emoji" class="mdl-button mdl-js-button mdl-button--icon emoji-button" readonly tabindex="-1" @click="toggleEmoji"/>
             <div id="emoji-wrapper" v-show="show_emoji" @click.self="toggleEmoji">
-                    <Picker set="emojione" :style="emojiStyle"  :set="set" :per-line="perLine" :skins="skin" :onItemClick="insertEmoji" />
+                    <Picker :style="emojiStyle" :set="set" :sheetSize="sheetSize" :per-line="perLine" :skins="skin" @select="insertEmoji" />
             </div>
             <div class="entry mdl-textfield mdl-js-textfield" :class="is_dirty" v-mdl>
-                <textarea class="mdl-textfield__input disabled" type="text" id="message-entry" autofocus @keydown.shift.enter.stop @keydown.enter.prevent.stop="dispatchSend" v-model="message"></textarea>
-                <label class="mdl-textfield__label" for="message-entry">Type message...</label>
+                <textarea class="mdl-textfield__input disabled" type="text" id="message-entry" @keydown.shift.enter.stop @keydown.enter.prevent.stop="dispatchSend" v-model="message"></textarea>
+                <label class="mdl-textfield__label" for="message-entry">{{ $t('sendbar.type') }}</label>
             </div>
             <!-- fab with correct colors will be inserted here -->
             <button class="send mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored mdl-js-ripple-effect" :style="{ background: send_color }" id="send-button" @click="dispatchSend">
@@ -31,8 +31,8 @@
 import Vue from 'vue'
 import AutoGrow from '@/lib/textarea-autogrow.js'
 import emojione from 'emojione'
-import 'vue-emoji-mart/css/emoji-mart.css'
-import { Picker } from 'vue-emoji-mart'
+import 'emoji-mart-vue/css/emoji-mart.css'
+import { Picker } from 'emoji-mart-vue'
 import { Api } from '@/utils'
 
 export default {
@@ -45,11 +45,6 @@ export default {
         window.addEventListener('resize', this.updateEmojiMargin)
         this.$wrapper = document.querySelector("#wrapper");
         this.$sendbar = document.querySelector("#message-entry");
-
-        if (this.$store.state.theme_global_dark) {
-            // document.querySelector("#emoji").src = "../../assets/images/ic_mood_white.png";
-            // document.querySelector("#attach").src = "../../assets/images/ic_attach_white.png";
-        }
 
         this.$store.state.msgbus.$on('hotkey-emoji', this.toggleEmoji);
 
@@ -93,7 +88,8 @@ export default {
                 width: "18em",
             },
             perLine: 6,
-            set: 'emojione',
+            set: 'twitter',
+            sheetSize: 32,
             skin: 3,
             show_emoji: false,
             $wrapper: null,
@@ -109,7 +105,19 @@ export default {
          * @param e - event object
          */
         dispatchSend(e) { // Dispatch send message when clicked
-            if (e instanceof KeyboardEvent && (e.shiftKey || !this.$store.state.enter_to_send)) {
+
+            // the shift key will be used to toggle between the send and return functionality, based
+            // on the users "enter to send" preference, in settings.
+
+            // case one: enter to send=off, no shift key -> return line
+            // case two: enter to send=off, shift key -> send message
+            // case three: enter to send=on, no shift key -> send message
+            // case four: enter to send=on, shift key -> return line
+
+            if (e instanceof KeyboardEvent && (
+                  (e.shiftKey && this.$store.state.enter_to_send) ||
+                  (!e.shiftKey && !this.$store.state.enter_to_send))) { // return line
+
                 // Get start/end of selection for insert location
                 const start = e.target.selectionStart;
                 const end =  e.target.selectionEnd;
@@ -128,7 +136,7 @@ export default {
             }
 
             // If message is empty, we're done
-            if (this.message.length <= 0 && !this.$store.state.loaded_media )
+            if (this.message.length <= 0 && !this.$store.state.loaded_media)
                 return false;
 
             // Send message to handler

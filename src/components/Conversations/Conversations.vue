@@ -11,7 +11,7 @@
          </div>
 
         <!-- If no Messages -->
-        <p class="empty-message" v-if="conversations.length == 0 && !loading">No Conversations</p>
+        <p class="empty-message" v-if="conversations.length == 0 && !loading">{{ $t('conversations.noconv') }}</p>
 
         <!-- Conversation items -->
         <transition-group name="flip-list" tag="div">
@@ -26,8 +26,9 @@
 
 <script>
 import Vue from 'vue';
+import { i18n } from '@/utils'
 import Hash from 'object-hash'
-import { Util, Api, SessionCache } from '@/utils'
+import { Util, Api, SessionCache, TimeUtils } from '@/utils'
 import ConversationItem from './ConversationItem.vue'
 import DayLabel from './DayLabel.vue'
 import Spinner from '@/components/Spinner.vue'
@@ -262,7 +263,9 @@ export default {
             this.searchClicked = !this.searchClicked;
 
             if (this.searchClicked) {
-                this.$el.querySelector('#search-bar').focus();
+                Vue.nextTick(() => { // Wait item to render
+                    this.$el.querySelector('#search-bar').focus();
+                });
             } else {
                 this.searchQuery = "";
             }
@@ -270,58 +273,17 @@ export default {
 
         calculateTitle (conversation) {
             if (conversation.pinned)
-                return "Pinned";
-            else if (isToday(conversation.timestamp))
-                return "Today";
-            else if (isYesterday(conversation.timestamp))
-                return "Yesterday";
-            else if (isLastWeek(conversation.timestamp))
-                return "This Week";
-            else if (isLastMonth(conversation.timestamp))
-                return "This Month";
+                return i18n.t('conversations.pinned');
+            else if (TimeUtils.isToday(conversation.timestamp))
+                return i18n.t('conversations.today');
+            else if (TimeUtils.isYesterday(conversation.timestamp))
+                return i18n.t('conversations.yesterday');
+            else if (TimeUtils.isLastWeek(conversation.timestamp))
+                return i18n.t('conversations.thisweek');
+            else if (TimeUtils.isLastMonth(conversation.timestamp))
+                return i18n.t('conversations.thismonth');
             else
-                return "Older";
-
-
-            function isToday(timestamp) {
-                let current = new Date();
-                zeroDate(current);
-
-                let time = new Date(timestamp);
-                zeroDate(time);
-
-                return current.getTime() == time.getTime();
-            }
-
-            function isYesterday(timestamp) {
-                let yesterday = new Date();
-                zeroDate(yesterday);
-                yesterday = new Date(yesterday.getTime() - 1000 * 60 * 60 * 24)
-
-                let time = new Date(timestamp);
-                zeroDate(time);
-
-                return yesterday.getTime() == time.getTime();
-            }
-
-            function isLastWeek(timestamp) {
-                let lastWeek = new Date();
-                zeroDate(lastWeek);
-                lastWeek = new Date(lastWeek.getTime() - 1000 * 60 * 60 * 24 * 7)
-
-                return timestamp > lastWeek.getTime() && timestamp < (new Date().getTime());
-            }
-
-            function isLastMonth(timestamp) {
-                return new Date().getMonth() == new Date(timestamp).getMonth();
-            }
-
-            function zeroDate(date) {
-                date.setHours(0);
-                date.setMinutes(0);
-                date.setSeconds(0);
-                date.setMilliseconds(0);
-            }
+                return i18n.t('conversations.older');
         }
     },
 
@@ -401,7 +363,7 @@ export default {
     .empty-message {
         color: rgba(0, 0, 0, 0.54);
         margin: 6em auto;
-        width: 8.5em;
+        width: 9.5em;
     }
 
     .compose {

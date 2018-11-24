@@ -4,6 +4,7 @@ import { KEYS, state } from '@/store/state.js'
 // called when the store is initialize
 const localStoreSync = store => {
     const local_items = {
+        'compose_contacts': KEYS.COMPOSE_CONTACTS,
         'contacts': KEYS.CONTACTS,
         'conversations': KEYS.CONVERSATIONS,
         'clearContacts': KEYS.CONTACTS,
@@ -15,8 +16,10 @@ const localStoreSync = store => {
         'theme_global_dark': KEYS.THEME.GLOBAL_DARK,
         'theme_global_accent': KEYS.THEME.GLOBAL_ACCENT,
         'theme_use_global': KEYS.THEME.USE_GLOBAL,
+        'theme_apply_appbar_color': KEYS.THEME.APPLY_APPBAR_COLOR,
         'notifications': KEYS.NOTIFICATIONS,
         'enter_to_send': KEYS.ENTER_TO_SEND,
+        'larger_app_bar': KEYS.LARGER_APP_BAR,
     }
 
     // called after every mutation.

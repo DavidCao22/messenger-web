@@ -4,12 +4,11 @@
 
         <transition name="fade">
             <div :class="style_class" :style="styleGenerator" :id="id" v-if="!this.messageData.marker">
-                <div v-show="message_from"> <b> {{ message_from }} </b> <br /> </div>
                 <div v-html="content"></div>
                 <!-- Content is inserted via v-html -->
 
                 <!-- Media -->
-                <a :href="media_link" target="_blank" v-show="is_media">
+                <a :href="media_link" target="_blank" v-show="is_media && !media_loading">
                     <img class="media" :src="media_thumb" alt="Thumbnail" @click="openImage">
                     <div class="article-title" v-show="is_article"> {{ media_title }} </div>
                     <div class="article-snippet" v-show="is_article"> {{ media_content }} </div>
@@ -36,7 +35,7 @@
 </template>
 
 <script>
-import { Util, Api, SessionCache } from '@/utils';
+import { Util, Api, SessionCache, TimeUtils } from '@/utils';
 import linkify from 'linkifyjs/html';
 
 export default {
@@ -53,17 +52,28 @@ export default {
         switch ( this.mime.split("/")[0] ) {
             /* SMS Text message */
             case "text": {
+                if (this.mime.indexOf("card") > -1) {
+                    this.content = "<i>Contact Card</i>";
+                }
+
                 break;
             }
 
             /* MMS Image Message */
             case "image": {
-                this.content = "<i style='line-height:250px;'> Loading MMS </i>";
+                this.content = `
+                <div style="width:436px;text-align:center;">
+                    <i style="line-height:254px"> Loading MMS </i>
+                </div>`;
                 this.is_media = true;
 
-                // Fetch media
-                MediaLoader.getMedia(this.id, this.mime)
-                    .then(blob => this.loadImage(blob));
+                let randomComp = Math.floor((Math.random() * 500) + 1);
+                setTimeout(() => {
+                    // Fetch media
+                    MediaLoader.getMedia(this.id, this.mime).then(blob => this.loadImage(blob));
+
+                }, 750 + randomComp);
+
                 break;
             }
 
@@ -96,16 +106,19 @@ export default {
                     this.media_link = googleMaps;
                     this.media_title = "";
                     this.media_content = "";
+                    this.media_loading = false;
                 } else if (this.mime == "media/youtube-v2") {
                     this.media_thumb = media.thumbnail;
                     this.media_link = media.url;
                     this.media_title =  media.title;
                     this.media_content = "";
+                    this.media_loading = false;
                 } else if (this.mime == "media/web") {
                     this.media_thumb = media.image_url;
                     this.media_link = media.web_url;
                     this.media_title =  media.title;
                     this.media_content = media.description;
+                    this.media_loading = false;
                 }
 
                 this.content = "";
@@ -171,11 +184,11 @@ export default {
             style_class: [ ],
             is_media: false,
             is_article: false,
+            media_loading: true,
             media_link: "",
             media_thumb: "",
             media_title: "",
             media_content: "",
-            dateLabel: this.messageData.dateLabel,
 
             options_class: [ ],
             displayOptions: false
@@ -203,6 +216,7 @@ export default {
             // Set data
             this.media_thumb = data_prefix + blob;
             this.media_link = data_prefix + blob;
+            this.media_loading = false;
         },
         updateType (type) {
             this.type = type;
@@ -224,7 +238,7 @@ export default {
             return this.type == 2 && (new Date().getTime() - this.timestamp) < 1000 * 60 ? true : false;
         },
         stringTime () {
-            return new Date(this.timestamp).toLocaleString()
+            return TimeUtils.fullTimestamp(new Date(this.timestamp));
         },
         styleGenerator () {
             // Only style recieved and media
@@ -244,6 +258,18 @@ export default {
             if (this.type == 0 || this.type == 6)
                 return "date-received"
             return "date-sent"
+        },
+        dateLabel () {
+            let from = this.messageData.fromLabel;
+            let dateLabel = this.messageData.dateLabel;
+
+            if (from != null && from.length > 0 && dateLabel != null) {
+                return from + " - " + dateLabel;
+            } else if (from != null && from.length > 0) {
+                return from;
+            } else {
+                return dateLabel;
+            }
         }
     }
 }

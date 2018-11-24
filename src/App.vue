@@ -62,6 +62,7 @@
 <script>
 
 import Vue from 'vue'
+import { i18n } from '@/utils'
 
 import '@/lib/sjcl.js'
 import '@/lib/hmacsha1.js'
@@ -108,7 +109,7 @@ export default {
     },
 
     mounted () { // Add window event listener
-
+        this.applyExperiments(); // Apply experiments...
         this.calculateHour(); // Calculate the next hour (for day/night theme)
         this.updateBodyClass(this.theme_str, ""); // Enables global theme
 
@@ -191,17 +192,19 @@ export default {
             // Start listening for shortcut keys
             this.shortcuts = new ShortcutKeys();
 
-            // Fetch contacts for cache
-            Api.fetchContacts().then((resp) => this.processContacts(resp));
-
-            // Grab user settings from server and store in local storage
-            Api.fetchSettings();
-
             // Populate the dropdown menu
             this.populateMenuItems();
 
             // Setup and store the medialoader (MMS)
             this.$store.commit('media_loader', new MediaLoader());
+
+            setTimeout(() => {
+                // Fetch contacts for cache
+                Api.fetchContacts().then((resp) => this.processContacts(resp));
+
+                // Grab user settings from server and store in local storage
+                Api.fetchSettings();
+            }, 1500);
 
             // Interval check to maintain socket
             setInterval(() => {
@@ -218,7 +221,7 @@ export default {
                 // Else, open new API and force refresh
                 this.mm.closeWebSocket()
                 this.mm = new Api();
-                this.$store.state.msgbus.$emit('refresh-btn');
+                this.mm.has_diconnected = true; // Initialize new api with has disconnected
 
                 this.calculateHour();
 
@@ -280,20 +283,20 @@ export default {
             // On thread add Delete, Blacklist, & Archive/unarchive
             if (this.$route.name.indexOf('thread') > -1) {
                 items.unshift(
-                    { "name": "conversation-information", 'title': "Conversation Information"},
-                    { "name": "blacklist", 'title': "Blacklist Contact"},
-                    { 'name': "delete", 'title': "Delete Conversation" },
+                    { "name": "conversation-information", 'title': i18n.t('menus.convinfo')},
+                    { "name": "blacklist", 'title': i18n.t('menus.blacklist')},
+                    { 'name': "delete", 'title': i18n.t('menus.delete')},
                     ( this.$route.path.indexOf("archived") == -1 ?
-                        { 'name': "archive", 'title': "Archive Conversation" } :
-                        { 'name': "unarchive", 'title': "Unarchive Conversation" }),
-                    { "name": "conversation-settings", 'title': "Conversation Settings"}
+                        { 'name': "archive", 'title': i18n.t('menus.archive')} :
+                        { 'name': "unarchive", 'title': i18n.t('menus.unarchive')}),
+                    { "name": "conversation-settings", 'title': i18n.t('menus.convsettings')}
                 );
             } else {
                 items.unshift(
-                    { 'name': "account", 'title': "My Account" },
-                    { 'name': "help-feedback", 'title': "Help and Feedback" },
-                    { 'name': "settings", 'title': "Settings" },
-                    { 'name': "logout", 'title': "Logout" }
+                    { 'name': "account", 'title': i18n.t('menus.account') },
+                    { 'name': "help-feedback", 'title': i18n.t('menus.help') },
+                    { 'name': "settings", 'title': i18n.t('menus.settings')},
+                    { 'name': "logout", 'title': i18n.t('menus.logout')}
                 )
             }
 
@@ -325,6 +328,10 @@ export default {
          * @param color - rgb/hex color string.
          */
         updateTheme (color) {
+            // Ignore if toolbar theme is false
+            if (!this.$store.state.theme_apply_appbar_color)
+                return false;
+
             this.toolbar_color = color;
         },
 
@@ -411,18 +418,33 @@ export default {
             this.$store.commit('contacts', contacts_cache);
         },
 
+        /**
+         * Open url in new window
+         * @param url
+         */
         openUrl (url) {
             window.open(url, '_blank');
+        },
+
+        /**
+         * Apply Experiments
+         */
+        applyExperiments () {
+            const body = this.$el.parentElement; // Select body (apparently)
+            const LARGER_APP_BAR = "larger_app_bar";
+            if (this.$store.state.larger_app_bar && !body.className.includes(LARGER_APP_BAR))
+                body.className += ` ${LARGER_APP_BAR} `;
+
         }
     },
 
     computed: {
         icon_class () {
             return {
-                'logo': false,
-                'logo_dark': this.full_theme,
-                'menu_toggle': false,
-                'menu_toggle_dark': !this.full_theme,
+                'logo': this.full_theme && !this.$store.state.theme_apply_appbar_color,
+                'logo_dark': this.full_theme && this.$store.state.theme_apply_appbar_color,
+                'menu_toggle': !this.full_theme && !this.$store.state.theme_apply_appbar_color,
+                'menu_toggle_dark': !this.full_theme && this.$store.state.theme_apply_appbar_color,
             }
         },
 
@@ -452,6 +474,9 @@ export default {
         },
 
         theme_toolbar () { // Determine toolbar color
+            if (!this.$store.state.theme_apply_appbar_color)  // If not color toolbar
+                return this.default_toolbar_color;
+
             if (this.$store.state.theme_use_global) // If use global
                 return this.$store.state.theme_global_default;
 
@@ -459,7 +484,15 @@ export default {
         },
 
         default_toolbar_color () { // Determine default colors
-            if (this.$store.state.theme_global_default) {
+            if (!this.$store.state.theme_apply_appbar_color) {
+                if (this.theme_str.indexOf('black') >= 0) {
+                    return "#000000";
+                } else if (this.theme_str.indexOf('dark') >= 0) {
+                    return "#202b30";
+                } else {
+                    return "#FFFFFF";
+                }
+            } else if (this.$store.state.theme_global_default) {
                 return this.$store.state.theme_global_default;
             } else {
                 return "#009688";
@@ -467,7 +500,8 @@ export default {
         },
 
         text_color () { // Determines toolbar text color
-            return "#fff";
+            if (this.$store.state.theme_apply_appbar_color)
+                return "#fff";
         }
     },
     watch: {
@@ -548,7 +582,6 @@ export default {
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
         background-color: $bg-light;
         border-color: #e3e3e3;
-
     }
 
     #toolbar_inner {
@@ -589,6 +622,10 @@ export default {
                 }
             }
 
+        }
+
+        .mdl-menu__outline {
+            border-radius: 10px;
         }
 
         .mdl-layout-title {
@@ -652,7 +689,7 @@ export default {
 
     #wrapper {
         transition: ease-in-out margin-left $anim-time;
-
+        padding-top: 15px;
     }
 
     #content {
@@ -703,6 +740,10 @@ export default {
                 }
             }
         }
+    }
+
+    .shadow {
+        box-shadow: 0px 2px 2px 0 rgba(0, 0, 0, 0.25);
     }
 
 
@@ -789,6 +830,26 @@ export default {
 
         .link-sent {
             color: white;
+        }
+    }
+
+    body.larger_app_bar {
+        #toolbar {
+            height: 55px;
+        }
+
+        #toolbar_inner {
+            margin-top: 7px;
+        }
+
+        .menu_icon {
+            margin: auto 5px;
+        }
+
+        @media screen and (min-width: 350px) {
+            .mdl-layout-title {
+                max-width: 161px;
+            }
         }
     }
 

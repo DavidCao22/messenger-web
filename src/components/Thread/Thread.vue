@@ -22,7 +22,7 @@
 import Vue from 'vue'
 import jump from 'jump.js'
 
-import { Util, Api, SessionCache } from '@/utils'
+import { Util, Api, SessionCache, TimeUtils } from '@/utils'
 
 import Spinner from '@/components/Spinner.vue'
 import Message from './Message.vue'
@@ -65,6 +65,7 @@ export default {
         let events = Util.addEventListeners(['focus'], (e) => {
             // Mark as read on focus
             this.markAsRead();
+
             // Focus cursor on message entry
             this.$el.querySelector('#message-entry').focus();
 
@@ -226,9 +227,8 @@ export default {
         sendMessage (message) {
             // Send stored media if laoded
             if (this.$store.state.loaded_media) {
-                let _this = this;
                 Api.sendFile(this.$store.state.loaded_media, (file, messageId) => {
-                    Api.sendMessage("firebase -1", file.type, _this.conversation_id, messageId);
+                    Api.sendMessage("firebase -1", file.type, this.conversation_id, messageId);
                 });
             }
 
@@ -255,7 +255,13 @@ export default {
             this.colors_from = {};
 
             // Focus
-            this.$el.querySelector('#message-entry').focus();
+            if (!this.$store.state.hotkey_navigation) {
+                Vue.nextTick(() => { // Wait item to render
+                    this.$el.querySelector('#message-entry').focus();
+                });
+            } else {
+                this.$store.commit('hotkey_navigation', false);
+            }
 
             // Remove media if needed
             if (this.$store.state.loaded_media)
@@ -275,8 +281,8 @@ export default {
                         const id = Util.createIdMatcher(i)
                         const contact = this.$store.getters.getContact(id); // Get contact
 
-                        if (!contact.colors.default)
-                            return this.colors_from[i] = this.color();
+                        if (!contact || !contact.colors.default)
+                            return this.colors_from[i] = this.color;
                         // Map name to color
                         this.colors_from[contact.name] = contact.colors.default;
                     }
@@ -306,14 +312,25 @@ export default {
 
                         // Compare current time stamp with the next (previous chronological)
                         response[i].dateLabel = this.compareTimestamps(
-                            new Date(response[i].timestamp), nextTimestamp, 15
+                            new Date(response[i].timestamp), nextTimestamp
                         );
+
+
+                        // Apply fromLabel
+                        response[i].fromLabel = response[i].message_from;
+                        if (response[i].message_from && i > 0) {
+                            if (response[i - 1].message_from == response[i].message_from) {
+                                response[i].fromLabel = "";
+                            }
+                        }
+
                         // Push to list
                         new_messages.push(response[i]);
                     }
 
                     if (offset > 0) // Create marker for scroll back
                         new_messages.push({
+                            device_id: Api.generateId(),
                             marker: true
                         });
 
@@ -378,8 +395,16 @@ export default {
             const lastTimestamp = new Date(lastMessage.timestamp);
 
             lastMessage.dateLabel = this.compareTimestamps(
-                new Date(event_obj.timestamp), lastTimestamp, 15
+                new Date(event_obj.timestamp), lastTimestamp
             );
+
+            // Apply fromLabel
+            event_obj.fromLabel = event_obj.message_from;
+            if (event_obj.message_from && this.messages.length > 0) {
+                if (lastMessage.message_from == event_obj.message_from) {
+                    lastMessage.fromLabel = "";
+                }
+            }
 
             this.messages.push(event_obj);
 
@@ -463,8 +488,6 @@ export default {
          * Archive conversation
          */
         archive () {
-            const _this = this;
-
             // Archive conversation on the server
             Api.archiver(!this.isArchived, this.conversation_id);
 
@@ -507,8 +530,6 @@ export default {
          * Delete conversations
          */
         delete () {
-            const _this = this;
-
             Api.deleter(this.conversation_id);
 
             // Snackbar the user
@@ -527,8 +548,6 @@ export default {
          * Blacklist contact
          */
         blacklist () {
-            const _this = this;
-
             if (this.conversation_data.phone_number.indexOf(",") < 0) {
                 Api.createBlacklist(this.conversation_data.phone_number);
                 Api.archiver(true, this.conversation_id);
@@ -689,14 +708,15 @@ export default {
          * @param nextDate - next date
          * @param length - time in minutes
          */
-        compareTimestamps(date, nextDate, length) {
+        compareTimestamps(date, nextDate) {
+            let length = 15; // minutes
 
-            // If the dates are length a part, return date string
-            if (nextDate.getTime() > date.getTime() + (1000 * 60 * length))
-                return date.toLocaleString();
-            else  // Otherwise null
+            // If the dates are "length" a part, return date string
+            if (nextDate.getTime() > date.getTime() + (1000 * 60 * length)) {
+                return TimeUtils.formatTimestamp(date.getTime(), Date.now())
+            } else {
                 return null;
-
+            }
         },
 
         handleShowMore() {

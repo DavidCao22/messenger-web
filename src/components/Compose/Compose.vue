@@ -1,5 +1,5 @@
 <template>
-    <div class="page-content" :style="{ height: pageHeight + 'px' }">
+    <div class="page-content">
         <RecipientBar :onContactListChanged="onContactListChanged"/>
         <Sendbar :onSend="sendMessage" :loading="sending" />
     </div>
@@ -7,6 +7,7 @@
 
 <script>
 import Vue from 'vue'
+import { i18n } from '@/utils'
 
 import { Api, Crypto, Util } from "@/utils/"
 import Sendbar from '../Thread/Sendbar.vue'
@@ -22,13 +23,6 @@ export default {
 
         this.$store.commit("loading", false);
         this.$store.commit('title', this.title);
-
-        window.addEventListener('resize', this.handleResize);
-        this.handleResize(); // Get initial margin size
-    },
-
-    beforeDestroy () {
-        window.removeEventListener('resize', this.handleResize);
     },
 
     data () {
@@ -36,7 +30,6 @@ export default {
             title: 'Compose',
             sending: false,
             selectedContacts: [],
-            pageHeight: 0
         }
     },
 
@@ -48,7 +41,7 @@ export default {
             let to = "";
 
             if (this.selectedContacts.length <= 0)
-                return Util.Snackbar("No recipient");
+                return Util.Snackbar(i18n.t('compose.norecipient'));
 
             this.selectedContacts.map((value) => { // Concat selected contacts
                 to += value.phone + ",";
@@ -59,7 +52,6 @@ export default {
 
             // send image, if one is attached
             if (this.$store.state.loaded_media) {
-                let _this = this;
                 Api.sendFile(this.$store.state.loaded_media, (file, messageId) => {
                     Api.createThreadWithImage(to, messageId, file.type);
                 });
@@ -73,11 +65,6 @@ export default {
                 this.$router.push('/');
             }, 1500);
         },
-
-        handleResize () {
-            const height = document.documentElement.clientHeight;
-            this.pageHeight = height;
-        }
     },
 
     components: {
@@ -91,5 +78,9 @@ export default {
 <style lang="scss" scoped>
 
     @import "../../assets/scss/_vars.scss";
+
+    .page-content {
+        height: calc(100vh - 145px);
+    }
 
 </style>

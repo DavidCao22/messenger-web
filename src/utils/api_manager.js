@@ -1,4 +1,5 @@
 import Vue from 'vue';
+import { i18n } from '@/utils'
 import router from '@/router/';
 import store from '@/store/';
 import emojione from 'emojione';
@@ -29,7 +30,7 @@ export default class Api {
         this.socket.addEventListener('open', () => {
             if (this.has_disconnected) {
                 store.state.msgbus.$emit('refresh-btn');
-                Util.snackbar("And we're back!");
+                Util.snackbar(i18n.t('api.back'));
             }
 
             if (this.disconnected_timeout != null) {
@@ -60,7 +61,7 @@ export default class Api {
             // trying to reconnect.
             this.disconnected_timeout = setTimeout(() => {
                 if (!this.has_disconnected)
-                    Util.snackbar("You've been disconnected. We're trying to reconnect you...");
+                    Util.snackbar(i18n.t('api.disconnected'));
 
                 this.has_disconnected = true;
             }, 5 * 1000);
@@ -755,7 +756,7 @@ export default class Api {
 
         store.commit('theme_base', response.base_theme);
         store.commit('theme_use_global', response.use_global_theme);
-        store.commit('theme_use_global', response.use_global_theme);
+        store.commit('theme_apply_appbar_color', response.apply_primary_color_to_toolbar);
         store.commit('theme_global', colors);
         store.commit('colors', colors);
     }
@@ -780,7 +781,7 @@ export default class Api {
             let contacts = [];
 
             if (!SessionCache.hasContacts()) {
-                queryContacts(50, 3000);
+                queryContacts(300, 3000);
             } else {
                 resolve(SessionCache.getContacts());
             }
@@ -796,7 +797,7 @@ export default class Api {
                             contacts.push(contact);
                     }
 
-                    if (response.length == pageLimit && contacts.length < totalLimit) {
+                    if (response.length == pageLimit/* && contacts.length < totalLimit*/) {
                         queryContacts(pageLimit, totalLimit);
                     } else {
                         finishQuery(contacts);

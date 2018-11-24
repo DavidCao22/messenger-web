@@ -5,7 +5,7 @@
         <spinner class="spinner" v-if="blacklists.length == 0 && loading"></spinner>
 
         <!-- If no Folders -->
-        <p class="empty-message" v-if="blacklists.length == 0 && !loading">No Blacklisted Numbers</p>
+        <p class="empty-message" v-if="blacklists.length == 0 && !loading">{{ $t('blacklist.none') }}</p>
 
         <!-- Conversation items -->
         <transition-group name="flip-list" tag="div">
@@ -84,7 +84,7 @@ export default {
 
     data () {
         return {
-            title: "Blacklist",
+            title: "",
             loading: true,
             blacklists: [],
         }
