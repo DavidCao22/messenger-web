@@ -76,7 +76,12 @@ export default class Crypto {
             message.mime_type = Crypto.decrypt(message.mime_type);
 
             message.dataNoEmoji = Crypto.decrypt(message.data);
-            message.data = emojione.unicodeToImage(Util.entityEncode(message.dataNoEmoji));
+
+            if (message.mime_type.indexOf("media") > -1) {
+                message.data = Util.entityEncode(message.dataNoEmoji);
+            } else {
+                message.data = emojione.unicodeToImage(Util.entityEncode(message.dataNoEmoji));
+            }
 
             message.message_from = Crypto.decrypt(message.message_from);
         } catch (err) {
@@ -122,7 +127,14 @@ export default class Crypto {
      */
     static decryptBlacklist (blacklist) {
         try {
-            blacklist.phone_number = Crypto.decrypt(blacklist.phone_number);
+            // phrase and phone number are optional, since it could be either/or.
+            if (blacklist.phone_number) {
+                blacklist.phone_number = Crypto.decrypt(blacklist.phone_number);
+            }
+
+            if (blacklist.phrase) {
+                blacklist.phrase = Crypto.decrypt(blacklist.phrase)
+            }
         } catch (err) {
             return null;
         }

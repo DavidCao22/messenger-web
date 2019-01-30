@@ -3,6 +3,7 @@ var utils = require('./utils')
 var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var SWPrecacheWebpackPlugin = require('sw-precache-webpack-plugin')
+var VueLoaderPlugin = require('vue-loader/lib/plugin')
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
@@ -17,7 +18,8 @@ module.exports = {
     filename: '[name].js',
     publicPath: process.env.NODE_ENV === 'production'
       ? config.build.assetsPublicPath
-      : config.dev.assetsPublicPath
+      : config.dev.assetsPublicPath,
+    globalObject: 'this'
   },
   resolve: {
     extensions: ['.js', '.vue', '.json'],
@@ -70,6 +72,11 @@ module.exports = {
           limit: 10000,
           name: utils.assetsPath('fonts/[name].[hash:7].[ext]')
         }
+      },
+      {
+        test: /\.worker\.js$/,
+        use: { loader: 'worker-loader' },
+        include: [resolve('src'), resolve('test')]
       }
     ]
   },
@@ -81,6 +88,7 @@ module.exports = {
       minify: true,
       stripPrefix: 'dist/',
       dontCacheBustUrlsMatching: /\.\w{6}\./
-    })
+    }),
+    new VueLoaderPlugin()
   ]
 }

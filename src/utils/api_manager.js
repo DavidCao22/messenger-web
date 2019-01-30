@@ -113,6 +113,10 @@ export default class Api {
             SessionCache.updateConversation(message);
 
             store.state.msgbus.$emit('newMessage', message);
+        } else if (operation == "removed_message") {
+            let message = json.message.content;
+
+            store.state.msgbus.$emit('deletedMessage', message.id);
         } else if (operation == "read_conversation") {
             const id = json.message.content.id;
 
@@ -135,6 +139,8 @@ export default class Api {
             const id = json.message.content.id;
 
             SessionCache.removeConversation(id, 'index_public_unarchived');
+            SessionCache.removeConversation(id, 'index_archived');
+            SessionCache.removeConversation(id, 'index_private');
             store.state.msgbus.$emit('removedConversation', { id });
         } else if (operation == "archive_conversation") {
             const id = json.message.content.id;
@@ -549,11 +555,28 @@ export default class Api {
         Vue.http.post(constructed_url);
     }
 
-    static createBlacklist (phone_number) {
+    static createBlacklistPhone (phone_number) {
         let request = {
             account_id: store.state.account_id,
             device_id: Api.generateId(),
             phone_number: Crypto.encrypt(phone_number)
+        };
+
+        let constructed_url = Url.get('create_blacklist');
+
+        const promise = new Promise((resolve, reject) => {
+            Vue.http.post(constructed_url, request, {'Content-Type': 'application/json'})
+                .then(response => { resolve(response); });
+        });
+
+        return promise;
+    }
+
+    static createBlacklistPhrase (phrase) {
+        let request = {
+            account_id: store.state.account_id,
+            device_id: Api.generateId(),
+            phrase: Crypto.encrypt(phrase)
         };
 
         let constructed_url = Url.get('create_blacklist');

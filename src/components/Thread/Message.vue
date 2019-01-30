@@ -67,12 +67,8 @@ export default {
                 </div>`;
                 this.is_media = true;
 
-                let randomComp = Math.floor((Math.random() * 500) + 1);
-                setTimeout(() => {
-                    // Fetch media
-                    MediaLoader.getMedia(this.id, this.mime).then(blob => this.loadImage(blob));
-
-                }, 750 + randomComp);
+                // Fetch media
+                MediaLoader.getMedia(this.id, this.mime).then(blob => this.loadImage(blob));
 
                 break;
             }
@@ -202,10 +198,20 @@ export default {
             this.displayOptions = false;
         },
         deleteMessage() {
-            Api.removeMessage(this.id);
-            SessionCache.invalidateMessages(this.messageData.device_conversation_id);
+            let options = {
+                okText: this.$t('thread.delete.delete'),
+                cancelText: this.$t('thread.delete.cancel'),
+                animation: 'fade'
+            }
 
-            this.$store.state.msgbus.$emit('deletedMessage', this.id);
+            const id = this.id;
+            const apiUtils = Api;
+
+            this.$dialog
+                .confirm(this.$t('thread.delete.message'), options)
+                .then(function(dialog) {
+                    apiUtils.removeMessage(id);
+                }).catch(function() { });
         },
         loadImage (blob) {
             this.content = ""; // Don't set content
@@ -295,6 +301,8 @@ export default {
 
     .message-wrapper {
         user-select: text;
+        -moz-user-select: text; 
+        -ms-user-select: text;
         clear: both;
         display: block;
 
@@ -483,11 +491,11 @@ export default {
     }
 
     .fade-enter-active, .fade-leave-active {
-      transition: opacity .3s;
+        transition: opacity .3s;
     }
 
     .fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
-      opacity: 0;
+        opacity: 0;
     }
 
     body.dark {

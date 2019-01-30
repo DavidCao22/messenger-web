@@ -90,7 +90,8 @@ export default {
                 this.contacts[contact.id] = {
                     'id': contact.id,
                     'name': contact.name,
-                    'phone': contact.phone_number
+                    'phone': contact.phone_number,
+                    'type': contact.contact_type
                 };
             }
 
@@ -119,7 +120,30 @@ export default {
                     if (contact.id == null) {
                         return `<div class="autocomplete-suggestion">${i18n.t('compose.cantfind')}</div>`;
                     } else {
-                        return '<div class="autocomplete-suggestion" data-val="' + contact.name + '" data-id="' + contact.id + '" data-name="' + contact.name + '" data-phone="' + contact.phone + '">' + contact.name + ' (' + contact.phone + ')' + '</div>';
+                        let display = contact.name + ' ' + contact.phone;
+                        if (contact.type) {
+                            switch (contact.type) {
+                                case -1: 
+                                    break;
+                                case 0: 
+                                    display = display + ' (' + i18n.t('contact.group') + ')';
+                                    break;
+                                case 1:
+                                    display = display + ' (' + i18n.t('contact.home') + ')';
+                                    break;
+                                case 2:
+                                    display = display + ' (' + i18n.t('contact.mobile') + ')';
+                                    break;
+                                case 3: 
+                                    display = display + ' (' + i18n.t('contact.work') + ')';
+                                    break;
+                                default:
+                                    display = display + ' (' + i18n.t('contact.other') + ')';
+                                    break;
+                            }
+                        }
+
+                        return `<div class="autocomplete-suggestion" data-val="${contact.name}" data-id="${contact.id}" data-name="${contact.name}" data-phone="${contact.phone}">${display}</div>`;
                     }
                 },
                 onSelect: function(e, term, rendered) {

@@ -59,7 +59,15 @@ export const i18n = new VueI18n({
                     pin: 'Pin Conversation',
                     mute: 'Mute Conversation',
                     private: 'Private Conversation'
-                }
+                },
+                delete: {
+                    delete: 'Delete',
+                    cancel: 'Cancel',
+                    thread: 'Are you sure that you want to delete this conversation?',
+                    message: 'Are you sure that you want to delete this message?'
+                },
+                newmessage: 'New Message',
+                show: 'Show'
             },
             menus: {
                 account: 'My Account',
@@ -77,12 +85,22 @@ export const i18n = new VueI18n({
                 norecipient: 'No Recipient',
                 type: 'Type contact...',
                 cantfind: 'Can\'t find your contact?',
-                alreadyadded: '{name} has already been added'
+                alreadyadded: '{name} has already been added',
+                downloading: 'Downloading contacts...'
+            },
+            contact: {
+                group: 'Group',
+                mobile: 'Mobile',
+                home: 'Home',
+                work: 'Work',
+                other: 'Other'
             },
             blacklist: {
                 none: 'No Blacklisted Numbers',
                 phone: 'Phone Number',
-                create: 'Create Blacklist'
+                create_phone: 'Blacklist by Phone',
+                create_phrase: 'Blacklist by Phrase',
+                phrase: 'Phrase'
             },
             settings: {
                 theme: 'Theme Settings',
