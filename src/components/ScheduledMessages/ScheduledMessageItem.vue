@@ -1,37 +1,37 @@
 <template>
-  <div class="message-wrapper" :title="stringTime">
-      <!-- <transition name="fade"> -->
-          <div class="message scheduled shadow" :id="id">
-              <div><b>{{ title }}</b><br/></div>
-              <div>{{ data }}</div>
-          </div>
-          <div class="date-wrapper">
-              <div class="date mdl-color-text--grey-500">{{ stringTime }}</div>
-          </div>
-          <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect mdl-menu--right"
-              id="message-menu" :data-mdl-for="id">
-              <li class="mdl-menu__item" @click="editMessage">Edit Message</li>
-              <li class="mdl-menu__item" @click="deleteMessage">Delete Message</li>
-          </ul>
-      <!-- </transition> -->
-  </div>
+    <div class="message-wrapper" :title="stringTime">
+        <!-- <transition name="fade"> -->
+        <div :id="id" class="message scheduled shadow">
+            <div>{{ displayText }}</div>
+        </div>
+        <div class="date-wrapper">
+            <div class="date mdl-color-text--grey-500">
+                {{ timestampText }}
+            </div>
+        </div>
+        <ul id="message-menu"
+            class="mdl-menu mdl-js-menu mdl-js-ripple-effect mdl-menu--right" :data-mdl-for="id"
+        >
+            <li class="mdl-menu__item" @click="editMessage">
+                Edit Message
+            </li>
+            <li class="mdl-menu__item" @click="deleteMessage">
+                Delete Message
+            </li>
+        </ul>
+        <!-- </transition> -->
+    </div>
 </template>
 
 <script>
 
-import store from '@/store/'
-import { Util, Api } from '@/utils'
+import store from '@/store/';
+import { Util, Api } from '@/utils';
+import { componentHandler } from '@/lib/material.js';
 
 export default {
-    name: 'scheduled-message-item',
+    name: 'ScheduledMessageItem',
     props: [ 'messageData' ],
-
-    mounted () {
-        let menu_el = this.$el.querySelector("#message-menu");
-        componentHandler.upgradeElement(menu_el);
-
-        this.menu = menu_el.MaterialMenu;
-    },
 
     data () {
         return {
@@ -41,31 +41,76 @@ export default {
             title: this.messageData.title,
             timestamp: this.messageData.timestamp,
             mime_type: this.messageData.mime_type,
+            repeat: this.messageData.repeat || 0,
             menu: null,
+        };
+    },
+
+    computed: {
+        displayText () {
+            if (this.mime_type != 'text/plain') {
+                return this.$t('scheduled.media');
+            } else {
+                return this.data;
+            }
+        },
+        timestampText () {
+            const time = new Date(this.timestamp).toLocaleString();
+            const name = this.title;
+
+            if (this.repeat == 0) {
+                return `${name} - ${time}`;
+            } else {
+                let repeatText = "";
+                switch (this.repeat) {
+                    case 1:
+                        repeatText = this.$t('scheduled.repeat.daily');
+                        break;
+                    case 2:
+                        repeatText = this.$t('scheduled.repeat.weekly');
+                        break;
+                    case 3:
+                        repeatText = this.$t('scheduled.repeat.monthly');
+                        break;
+                    case 4:
+                        repeatText = this.$t('scheduled.repeat.yearly');
+                        break;
+                }
+
+                return `${name} - ${time} (${repeatText})`;
+            }
         }
+    },
+
+    mounted () {
+        let menu_el = this.$el.querySelector("#message-menu");
+        componentHandler.upgradeElement(menu_el);
+
+        this.menu = menu_el.MaterialMenu;
     },
 
     methods: {
         deleteMessage () {
             Util.snackbar("Deleted Message to " + this.title);
-            Api.removeScheduledMessage(this.id);
+            Api.scheduledMessages.delete(this.id);
             store.state.msgbus.$emit('refresh-btn');
         },
 
         editMessage () {
             this.$router.push({
-                name: 'edit-scheduled-message', params: { message_id: this.id, original_to: this.to, original_title: this.title, original_data: this.data, original_timestamp: this.timestamp }
+                name: 'edit-scheduled-message', params: {
+                    messageId: this.id,
+                    originalTo: this.to,
+                    originalTitle: this.title,
+                    originalData: this.data,
+                    originalTimestamp: this.timestamp,
+                    originalRepeat: this.repeat
+                }
             });
-        }
-    },
-
-    computed: {
-        stringTime () {
-            return new Date(this.timestamp).toLocaleString()
         }
     }
 
-}
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

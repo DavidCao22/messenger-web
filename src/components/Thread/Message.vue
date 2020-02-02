@@ -1,46 +1,121 @@
 <template>
     <div class="message-wrapper" :title="stringTime" @mouseover="showOptions" @mouseleave="hideOptions">
-        <div id="offset-marker" v-if="this.messageData.marker"></div>
+        <div v-if="messageData.marker" id="offset-marker"></div>
 
         <transition name="fade">
-            <div :class="style_class" :style="styleGenerator" :id="id" v-if="!this.messageData.marker">
+            <div v-if="!messageData.marker" :id="id" :class="style_class" :style="styleGenerator">
+                <!-- eslint-disable vue/no-v-html -->
                 <div v-html="content"></div>
                 <!-- Content is inserted via v-html -->
 
                 <!-- Media -->
-                <a :href="media_link" target="_blank" v-show="is_media && !media_loading">
+                <a v-show="is_media && !media_loading" :href="media_link" target="_blank">
                     <img class="media" :src="media_thumb" alt="Thumbnail" @click="openImage">
-                    <div class="article-title" v-show="is_article"> {{ media_title }} </div>
-                    <div class="article-snippet" v-show="is_article"> {{ media_content }} </div>
+                    <div v-show="is_article" class="article-title"> {{ media_title }} </div>
+                    <div v-show="is_article" class="article-snippet"> {{ media_content }} </div>
                 </a>
+
+                <!-- Video/Audio -->
+                <video v-if="video_src.length != 0 && !media_loading" controls :src="video_src"></video>
+                <audio v-if="audio_src.length != 0 && !media_loading" controls :src="audio_src"></audio>
             </div>
         </transition>
 
         <transition name="fade">
-            <button id="delete-button" :class="options_class" class="message_options menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" v-if="displayOptions && !is_article" @click="deleteMessage">
-               <i class="material-icons">delete</i>
+            <button v-if="displayOptions && !is_article" id="delete-button" :class="options_class" class="message_options menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" @click="deleteMessage">
+                <i class="material-icons">delete</i>
             </button>
         </transition>
 
-        <div class="date-wrapper" v-if="dateLabel">
-            <div :class="dateType" class="mdl-color-text--grey-500"> {{ dateLabel }}</div>
+        <div v-if="dateLabel" class="date-wrapper">
+            <div :class="dateType" class="mdl-color-text--grey-500">
+                {{ dateLabel }}
+            </div>
         </div>
 
         <transition name="slide-out">
-            <div class="sent-wrapper" v-if="sending">
-                <div class="sending mdl-color-text--grey-500">Sending...</div>
+            <div v-if="sending" class="sent-wrapper">
+                <div class="sending mdl-color-text--grey-500">
+                    Sending...
+                </div>
             </div>
         </transition>
     </div>
 </template>
 
 <script>
-import { Util, Api, SessionCache, TimeUtils } from '@/utils';
+import { Api, Util, TimeUtils } from '@/utils';
 import linkify from 'linkifyjs/html';
 
 export default {
-    name: 'message',
+    name: 'Message',
     props: [ 'messageData', 'threadColor', 'textColor' ],
+
+    data () {
+        return {
+            id: this.messageData.device_id,
+            mime: this.messageData.mime_type,
+            content: this.messageData.data,
+            type: this.messageData.message_type,
+            timestamp: this.messageData.timestamp,
+            message_from: this.messageData.message_from,
+
+            color: 'rgba(255,255,255,1)',
+            style_class: [ ],
+            is_media: false,
+            is_article: false,
+            media_loading: true,
+            media_link: "",
+            media_thumb: "",
+            media_title: "",
+            media_content: "",
+            video_src: "",
+            audio_src: "",
+
+            options_class: [ ],
+            displayOptions: false
+        };
+    },
+
+    computed: {
+        sending () {
+            return this.type == 2 && (new Date().getTime() - this.timestamp) < 1000 * 60 ? true : false;
+        },
+        stringTime () {
+            return TimeUtils.fullTimestamp(new Date(this.timestamp));
+        },
+        styleGenerator () {
+            // Only style recieved and media
+            if (this.type != 0 && this.type != 6)
+                return "";
+
+            let media = "";
+            if (this.is_article || this.is_media)
+                media = "padding-bottom:10px;";
+
+            return "background: " + this.color + ";"
+                  + "border-color: " + this.color
+                  + " transparent;" + media
+                  + "color:" + this.textColor + ";";
+        },
+        dateType () {
+            if (this.type == 0 || this.type == 6)
+                return "date-received";
+            return "date-sent";
+        },
+        dateLabel () {
+            let from = this.messageData.fromLabel;
+            let dateLabel = this.messageData.dateLabel;
+
+            if (from != null && from.length > 0 && dateLabel != null) {
+                return from + " - " + dateLabel;
+            } else if (from != null && from.length > 0) {
+                return from;
+            } else {
+                return dateLabel;
+            }
+        }
+    },
 
     mounted () {
         if (this.messageData.marker)
@@ -61,9 +136,8 @@ export default {
 
             /* MMS Image Message */
             case "image": {
-                this.content = `
-                <div style="width:436px;text-align:center;">
-                    <i style="line-height:254px"> Loading MMS </i>
+                this.content = `<div style="width:436px;text-align:center;">
+                    <i style="line-height:254px">Loading image...</i>
                 </div>`;
                 this.is_media = true;
 
@@ -74,12 +148,26 @@ export default {
             }
 
             case "video": {
-                this.content = "<i>Video not yet supported.</i>";
+                this.content = `<div style="width:436px;text-align:center;">
+                    <i style="line-height:254px">Loading video...</i>
+                </div>`;
+                this.is_video = true;
+
+                // Fetch media
+                MediaLoader.getMedia(this.id, this.mime).then(blob => this.loadVideo(blob));
+
                 break;
             }
 
             case "audio": {
-                this.content = "<i>Audio not yet supported.</i>";
+                this.content = `<div style="width:436px;text-align:center;">
+                    <i style="line-height:254px">Loading audio...</i>
+                </div>`;
+                this.is_video = true;
+
+                // Fetch media
+                MediaLoader.getMedia(this.id, this.mime).then(blob => this.loadAudio(blob));
+
                 break;
             }
 
@@ -89,13 +177,19 @@ export default {
 
                 this.style_class.push('media-preview');
 
-                const media = JSON.parse(this.content);
+                // Catch firebase errors
+                let media;
+                try {
+                    media = JSON.parse(this.content);
+                } catch (e) {
+                    this.mime = "media/error";
+                }
 
                 if (this.mime == "media/map") {
                     let map = "https://maps.googleapis.com/maps/api/staticmap" +
                           "?size=600x400" +
                           "&markers=color:red%7C" + media.latitude + "," + media.longitude +
-                          "&key=AIzaSyAHq1IIIdGz01rEbEtUtDwEFJWwvAI_lww"
+                          "&key=AIzaSyAHq1IIIdGz01rEbEtUtDwEFJWwvAI_lww";
                     let googleMaps = "https://maps.google.com/maps/@" + media.latitude + "," + media.longitude + ",16z";
 
                     this.media_thumb = map;
@@ -115,6 +209,13 @@ export default {
                     this.media_title =  media.title;
                     this.media_content = media.description;
                     this.media_loading = false;
+                } else if (this.mime == "media/error") {
+                    this.content = `<div style="width:436px;text-align:center;">
+                        <i style="line-height:254px">Media not avalible</i>
+                    </div>`;
+                    this.is_media = false;
+
+                    break;
                 }
 
                 this.content = "";
@@ -129,12 +230,16 @@ export default {
             }
         }
 
-        let linkClass = 'link-sent'
+        let linkClass = 'link-sent';
         if (!this.is_article) {
             switch (this.type) {
                 case 0:
                 case 6: {
-                    linkClass = 'link-received'
+                    if (this.textColor == "#000") {
+                        linkClass = 'link-received-dark';
+                    } else {
+                        linkClass = 'link-received';
+                    }
                     this.color = this.threadColor;
                     this.style_class.push('received');
                     break;
@@ -148,49 +253,28 @@ export default {
                     break;
                 }
                 default: {
-                    this.style_class.push('sent') //TODO add text color from global theme
+                    this.style_class.push('sent'); //TODO add text color from global theme
                     this.options_class.push('sent_options');
                 }
             }
         }
 
         if (this.sending) {
-            this.$store.state.msgbus.$on('updateMessageType-' + this.id,
-                (payload) => this.updateType(payload.message_type));
+            this.$store.state.msgbus.$on('updateMessageType-' + this.id, this.updateType);
         }
 
         // Add links
-        this.content = linkify(this.content, { className: linkClass })
+        this.content = linkify(this.content, { className: linkClass });
     },
 
     beforeDestroy () {
-        this.$store.state.msgbus.$off('updateMessageType-' + this.id);
-    },
-
-    data () {
-        return {
-            id: this.messageData.device_id,
-            mime: this.messageData.mime_type,
-            content: this.messageData.data,
-            type: this.messageData.message_type,
-            timestamp: this.messageData.timestamp,
-            message_from: this.messageData.message_from,
-
-            color: 'rgba(255,255,255,1)',
-            style_class: [ ],
-            is_media: false,
-            is_article: false,
-            media_loading: true,
-            media_link: "",
-            media_thumb: "",
-            media_title: "",
-            media_content: "",
-
-            options_class: [ ],
-            displayOptions: false
-        }
+        this.$store.state.msgbus.$off('updateMessageType-' + this.id, this.updateType);
     },
     methods: {
+        refreshSettings () {
+            Api.account.settings.get();
+            Util.snackbar("Settings Refreshed");
+        },
         showOptions () {
             this.displayOptions = true;
         },
@@ -202,15 +286,15 @@ export default {
                 okText: this.$t('thread.delete.delete'),
                 cancelText: this.$t('thread.delete.cancel'),
                 animation: 'fade'
-            }
+            };
 
             const id = this.id;
             const apiUtils = Api;
 
             this.$dialog
                 .confirm(this.$t('thread.delete.message'), options)
-                .then(function(dialog) {
-                    apiUtils.removeMessage(id);
+                .then(() => {
+                    apiUtils.messages.delete(id);
                 }).catch(function() { });
         },
         loadImage (blob) {
@@ -224,8 +308,28 @@ export default {
             this.media_link = data_prefix + blob;
             this.media_loading = false;
         },
-        updateType (type) {
-            this.type = type;
+        loadVideo (blob) {
+            this.content = ""; // Don't set content
+
+            // Construct data url
+            const data_prefix = "data:" + this.mime + ";base64,";
+
+            // Set data
+            this.video_src = data_prefix + blob;
+            this.media_loading = false;
+        },
+        loadAudio (blob) {
+            this.content = ""; // Don't set content
+
+            // Construct data url
+            const data_prefix = "data:" + this.mime + ";base64,";
+
+            // Set data
+            this.audio_src = data_prefix + blob;
+            this.media_loading = false;
+        },
+        updateType (payload) {
+            this.type = payload.message_type;
         },
         openImage (e) {
             if (this.mime.indexOf('image') > -1) {
@@ -237,48 +341,8 @@ export default {
             }
         }
 
-    },
-
-    computed: {
-        sending () {
-            return this.type == 2 && (new Date().getTime() - this.timestamp) < 1000 * 60 ? true : false;
-        },
-        stringTime () {
-            return TimeUtils.fullTimestamp(new Date(this.timestamp));
-        },
-        styleGenerator () {
-            // Only style recieved and media
-            if (this.type != 0 && this.type != 6)
-                return "";
-
-            let media = "";
-            if (this.is_article || this.is_media)
-                media = "padding-bottom:10px;"
-
-            return "background: " + this.color + ";"
-                  + "border-color: " + this.color
-                  + " transparent;" + media
-                  + "color:" + this.textColor + ";";
-        },
-        dateType () {
-            if (this.type == 0 || this.type == 6)
-                return "date-received"
-            return "date-sent"
-        },
-        dateLabel () {
-            let from = this.messageData.fromLabel;
-            let dateLabel = this.messageData.dateLabel;
-
-            if (from != null && from.length > 0 && dateLabel != null) {
-                return from + " - " + dateLabel;
-            } else if (from != null && from.length > 0) {
-                return from;
-            } else {
-                return dateLabel;
-            }
-        }
     }
-}
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
@@ -301,7 +365,7 @@ export default {
 
     .message-wrapper {
         user-select: text;
-        -moz-user-select: text; 
+        -moz-user-select: text;
         -ms-user-select: text;
         clear: both;
         display: block;
@@ -477,6 +541,12 @@ export default {
 
     img {
       padding-bottom: 4px;
+    }
+
+    video {
+        object-fit: cover;
+        background-repeat: no-repeat;
+        height: 400px;
     }
 
     .slide-out-enter-active, .slide-out-leave-active {

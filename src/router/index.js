@@ -1,23 +1,23 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
+import Vue from 'vue';
+import VueRouter from 'vue-router';
 
-import store from '@/store/'
+import store from '@/store/';
 
-import Login from '@/components/Login.vue'
-import Settings from '@/components/Settings.vue'
-import Experiments from '@/components/Experiments.vue'
-import ConversationSettings from '@/components/Thread/Settings.vue'
-import Passcode from '@/components/Passcode.vue'
-import HelpFeedback from '@/components/HelpFeedback.vue'
-import Thread from '@/components/Thread/'
-import Compose from '@/components/Compose/'
-import Conversations from '@/components/Conversations/'
-import Folders from '@/components/Folders/'
-import { Blacklists, CreateBlacklist } from '@/components/Blacklists/'
-import { ScheduledMessages, CreateScheduledMessage, EditScheduledMessage } from '@/components/ScheduledMessages/'
-import { Account, Drafts, Devices, Contacts, Templates, AutoReplies, AccountFolders } from '@/components/Account/'
+import Login from '@/components/Login.vue';
+import Settings from '@/components/Settings.vue';
+import Experiments from '@/components/Experiments.vue';
+import ConversationSettings from '@/components/Thread/Settings.vue';
+import Passcode from '@/components/Passcode.vue';
+import HelpFeedback from '@/components/HelpFeedback.vue';
+import Thread from '@/components/Thread/';
+import Compose from '@/components/Compose/';
+import Conversations from '@/components/Conversations/';
+import Folders from '@/components/Folders/';
+import { Blacklists, CreateBlacklist } from '@/components/Blacklists/';
+import { ScheduledMessages, CreateScheduledMessage, EditScheduledMessage } from '@/components/ScheduledMessages/';
+import { Account, Drafts, Devices, Contacts, Templates, AutoReplies, AccountFolders } from '@/components/Account/';
 
-Vue.use(VueRouter)
+Vue.use(VueRouter);
 
 let router = new VueRouter({
     mode: "history",
@@ -33,6 +33,12 @@ let router = new VueRouter({
             name: 'conversations-list-archived',
             component: Conversations,
             props: { 'index': 'index_archived', 'small': false },
+        },
+        {
+            path: '/unread',
+            name: 'conversations-list-unread',
+            component: Conversations,
+            props: { 'index': 'index_public_unread', 'small': false },
         },
         {
             path: '/private',
@@ -79,7 +85,7 @@ let router = new VueRouter({
             component: Experiments,
         },
         {
-            path: '/thread/:conversation_id/settings',
+            path: '/thread/:conversationId/settings',
             name: 'conversation-settings',
             component: ConversationSettings,
             props: true
@@ -115,7 +121,7 @@ let router = new VueRouter({
             component: CreateScheduledMessage
         },
         {
-            path: '/scheduled/edit/:message_id',
+            path: '/scheduled/edit/:messageId',
             name: 'edit-scheduled-message',
             component: EditScheduledMessage,
             props: true
@@ -161,7 +167,7 @@ let router = new VueRouter({
             component: AccountFolders,
         },
     ],
-})
+});
 
 router.beforeEach((to, from, next) => {
     if (to.name == null)
@@ -174,7 +180,7 @@ router.beforeEach((to, from, next) => {
         return next({name: 'login'});
 
     next();
-})
+});
 
 // This script is a work around for github pages deployments.
 // If a redirect session is created, delete and redirect
@@ -182,6 +188,6 @@ var redirect = sessionStorage.redirect;
 delete sessionStorage.redirect;
 
 if (redirect && redirect != location.href)
-    router.replace(redirect.split(location.host)[1])
+    router.replace(redirect.split(location.host)[1]);
 
-export default router
+export default router;

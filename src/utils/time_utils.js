@@ -25,7 +25,24 @@ export default class TimeUtils {
 
         if (timestamp > currentTime - 2 * TimeUtils.minute()) {
             return "Now";
-        } else if (timestamp > currentTime - 1 * TimeUtils.day()) {
+        } else if (TimeUtils.isToday(timestamp)) {
+            let options = { second: undefined, hour: 'numeric', minute: 'numeric' };
+            return date.toLocaleTimeString(undefined, options);
+        } else if (timestamp > currentTime - 7 * TimeUtils.day()) {
+            let options = { second: undefined, hour: 'numeric', minute: 'numeric', weekday: 'short' };
+            return date.toLocaleTimeString(undefined, options);
+        } else if (timestamp > currentTime - 1 * TimeUtils.year()) {
+            let options = { month: 'short', day: 'numeric', second: undefined, hour: 'numeric', minute: 'numeric'};
+            return date.toLocaleDateString(undefined, options);
+        } else {
+            return TimeUtils.fullTimestamp(date);
+        }
+    }
+
+    static formatConversationTimestamp (timestamp, currentTime) {
+        let date = new Date(timestamp);
+
+        if (TimeUtils.isToday(timestamp)) {
             let options = { second: undefined, hour: 'numeric', minute: 'numeric' };
             return date.toLocaleTimeString(undefined, options);
         } else if (timestamp > currentTime - 7 * TimeUtils.day()) {
@@ -57,7 +74,7 @@ export default class TimeUtils {
     static isYesterday (timestamp) {
         let yesterday = new Date();
         TimeUtils.zeroDate(yesterday);
-        yesterday = new Date(yesterday.getTime() - 1000 * 60 * 60 * 24)
+        yesterday = new Date(yesterday.getTime() - 1000 * 60 * 60 * 24);
 
         let time = new Date(timestamp);
         TimeUtils.zeroDate(time);
@@ -68,7 +85,7 @@ export default class TimeUtils {
     static isLastWeek (timestamp) {
         let lastWeek = new Date();
         TimeUtils.zeroDate(lastWeek);
-        lastWeek = new Date(lastWeek.getTime() - 1000 * 60 * 60 * 24 * 7)
+        lastWeek = new Date(lastWeek.getTime() - 1000 * 60 * 60 * 24 * 7);
 
         return timestamp > lastWeek.getTime() && timestamp < (new Date().getTime());
     }

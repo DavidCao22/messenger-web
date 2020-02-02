@@ -1,5 +1,5 @@
-import Vue from 'vue'
-import VueI18n from 'vue-i18n'
+import Vue from 'vue';
+import VueI18n from 'vue-i18n';
 
 Vue.use(VueI18n);
 
@@ -19,11 +19,13 @@ export const i18n = new VueI18n({
             },
             sidebar: {
                 conversations: 'Conversations',
+                unreadconversations: 'Unread Conversations',
                 privateconversations: 'Private Conversations',
                 archive: 'Archive',
                 folders: 'Folders',
                 scheduled: 'Scheduled Messages',
-                blacklist: 'Blacklist'
+                blacklist: 'Blacklist',
+                searchconversations: 'Search Conversations'
             },
             api: {
                 disconnected: 'You\'ve been disconnected. We\'re trying to reconnect you...',
@@ -66,6 +68,8 @@ export const i18n = new VueI18n({
                     thread: 'Are you sure that you want to delete this conversation?',
                     message: 'Are you sure that you want to delete this message?'
                 },
+                blacklisted: 'Contact blacklisted and moved to the archive.',
+                groupblacklisted: 'Cannot blacklist group conversations.',
                 newmessage: 'New Message',
                 show: 'Show'
             },
@@ -78,12 +82,12 @@ export const i18n = new VueI18n({
                 blacklist: 'Blacklist Contact',
                 delete: 'Delete Conversation',
                 archive: 'Archive Conversation',
-                unarchive: 'Unarchive Conversation',
+                unarchive: 'Move to Inbox',
                 convsettings: 'Conversation Settings'
             },
             compose: {
                 norecipient: 'No Recipient',
-                type: 'Type contact...',
+                type: 'Search contacts or enter phone numbers (separated by a semicolon)...',
                 cantfind: 'Can\'t find your contact?',
                 alreadyadded: '{name} has already been added',
                 downloading: 'Downloading contacts...'
@@ -100,7 +104,18 @@ export const i18n = new VueI18n({
                 phone: 'Phone Number',
                 create_phone: 'Blacklist by Phone',
                 create_phrase: 'Blacklist by Phrase',
-                phrase: 'Phrase'
+                phrase: 'Phrase',
+                delete: 'Remove blacklist'
+            },
+            scheduled: {
+                repeat: {
+                    never: 'Do not repeat',
+                    daily: 'Repeat daily',
+                    weekly: 'Repeat weekly',
+                    monthly: 'Repeat monthly',
+                    yearly: 'Repeat yearly'
+                },
+                media: 'Media, within a scheduled message, can only be viewed on the phone app.'
             },
             settings: {
                 theme: 'Theme Settings',
@@ -116,16 +131,22 @@ export const i18n = new VueI18n({
                 accent: 'Accent Color',
                 applyeverywhere: 'Apply Colors to all Conversations',
                 applyprimary: 'Apply Primary Color to App Bar',
+                messagetimestamp: 'Display Timestamp on Every Message',
+                conversationcategories: 'Display Conversations in Date Categories',
                 webspecific: 'Web Specific Settings',
                 shownotifs: 'Show Notifications',
                 entersend: 'Use Enter to Send Messages',
                 yes: 'Yes',
                 no: 'No'
             },
+            account: {
+                upgrade_subscription: 'Want to change or upgrade your subscription? Head to the "My Account" section, in the Android app!'
+            },
             experiments: {
                 disclaimer: 'Disclaimer',
                 explanatory_intro: 'These preferences come with no support and no guarentee that they will continue to exist. As an open source app, they will be useful to test new features and provide developers with the means of implementing their own tweaks into the app. Use with caution and do not rely on them, unless you are maintaining them. They are meant to be experiments.',
                 larger_app_bar: 'Display Larger App Bar',
+                unread_count_in_sidebar: 'Display Unread Messages Count in Sidebar',
             }
         },
         fr: {

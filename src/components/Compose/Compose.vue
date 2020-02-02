@@ -1,28 +1,23 @@
 <template>
     <div class="page-content">
-        <RecipientBar :onContactListChanged="onContactListChanged"/>
-        <Sendbar :onSend="sendMessage" :loading="sending" />
+        <ContactEntryBar :on-contact-list-changed="onContactListChanged" />
+        <Sendbar :on-send="sendMessage" :loading="sending" />
     </div>
 </template>
 
 <script>
-import Vue from 'vue'
-import { i18n } from '@/utils'
+import { i18n } from '@/utils';
 
-import { Api, Crypto, Util } from "@/utils/"
-import Sendbar from '../Thread/Sendbar.vue'
-import RecipientBar from './RecipientBar.vue'
+import { Api, Util } from "@/utils/";
+import Sendbar from '../Thread/Sendbar.vue';
+import ContactEntryBar from './ContactEntryBar.vue';
 
 export default {
-    name: 'compose',
+    name: 'Compose',
 
-    mounted () {
-        this.$store.commit('colors_default', this.$store.state.theme_global_default)
-        this.$store.commit('colors_dark', this.$store.state.theme_global_dark)
-        this.$store.commit('colors_accent', this.$store.state.theme_global_accent)
-
-        this.$store.commit("loading", false);
-        this.$store.commit('title', this.title);
+    components: {
+        ContactEntryBar,
+        Sendbar,
     },
 
     data () {
@@ -30,7 +25,16 @@ export default {
             title: 'Compose',
             sending: false,
             selectedContacts: [],
-        }
+        };
+    },
+
+    mounted () {
+        this.$store.commit('colors_default', this.$store.state.theme_global_default);
+        this.$store.commit('colors_dark', this.$store.state.theme_global_dark);
+        this.$store.commit('colors_accent', this.$store.state.theme_global_accent);
+
+        this.$store.commit("loading", false);
+        this.$store.commit('title', this.title);
     },
 
     methods: {
@@ -52,27 +56,22 @@ export default {
 
             // send image, if one is attached
             if (this.$store.state.loaded_media) {
-                Api.sendFile(this.$store.state.loaded_media, (file, messageId) => {
-                    Api.createThreadWithImage(to, messageId, file.type);
+                Api.messages.media.send(this.$store.state.loaded_media, (file, messageId) => {
+                    Api.conversations.createWithImage(to, messageId, file.type);
                 });
             }
 
             if (message.length > 0) {
-                Api.createThread(to, message);
+                Api.conversations.create(to, message);
             }
 
             setTimeout(() => {
                 this.$router.push('/');
             }, 1500);
         },
-    },
-
-    components: {
-        RecipientBar,
-        Sendbar,
     }
 
-}
+};
 </script>
 
 <style lang="scss" scoped>

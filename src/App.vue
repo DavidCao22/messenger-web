@@ -1,30 +1,33 @@
 <template>
     <div id="app">
-
         <!-- Toolbar -->
         <div id="toolbar" :style="{ color: text_color }">
-            <div id="toolbar_inner" :style="{ marginLeft: margin + 'px'}"> <!-- Toolbar-Inner -->
-                <div id="logo" @click="toggleSidebar"> <!-- Logo/Drawer link -->
-                    <img id="logo-image" src="./assets/images/holder.gif" width="30" height="30" class="icon" :class="icon_class" />
+            <div id="toolbar_inner" :style="{ marginLeft: margin + 'px'}">
+                <!-- Toolbar-Inner -->
+                <div id="logo" @click="toggleSidebar">
+                    <!-- Logo/Drawer link -->
+                    <img id="logo-image" src="./assets/images/holder.gif" width="30" height="30" class="icon" :class="icon_class">
                 </div>
-                <span class="mdl-layout-title" id="toolbar-title">{{ $store.state.title }}</span>
-                <div id="toolbar_icons" >
+                <span id="toolbar-title" class="mdl-layout-title">{{ $store.state.title }}</span>
+                <div id="toolbar_icons">
                     <transition-group name="list">
-                    <button id="search-button" class="menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" v-if="$route.name == 'conversations-list'" key="search" @click="dispatchMenuButton('search')">
-                       <i class="material-icons">search</i>
-                    </button>
-                    <button id="add-button" class="menu_icon add mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" v-if="$route.path.indexOf('thread') != -1" key="add" @click="$router.push('/compose');">
-                        <i class="material-icons material-icons-white">add</i>
-                    </button>
-                    <button id="refresh-button" class="menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" @click="dispatchMenuButton('refresh')" key="refresh">
-                        <i class="material-icons">refresh</i>
-                    </button>
-                    <button class="menu_icon android-more-button mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" id="more-button" key="more">
-                        <i class="material-icons">more_vert</i>
-                    </button>
+                        <button v-if="show_search" id="search-button" key="search" class="menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" @click="dispatchMenuButton('search')">
+                            <i class="material-icons">search</i>
+                        </button>
+                        <button v-if="$route.path.indexOf('thread') != -1" id="add-button" key="add" class="menu_icon add mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" @click="$router.push('/compose');">
+                            <i class="material-icons material-icons-white">add</i>
+                        </button>
+                        <button id="refresh-button" key="refresh" class="menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" @click="dispatchMenuButton('refresh')">
+                            <i class="material-icons">refresh</i>
+                        </button>
+                        <button id="more-button" key="more" class="menu_icon android-more-button mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect">
+                            <i class="material-icons">more_vert</i>
+                        </button>
                     </transition-group>
-                    <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect" for="more-button" >
-                        <li v-for="item in menu_items" class="mdl-menu__item" :id="item.name + '-btn'" @click.prevent="dispatchMenuButton(item.name)" v-mdl><a class="mdl-menu__item" :id="item.name + '-conversation'" href="#">{{ item.title }}</a></li>
+                    <ul class="mdl-menu mdl-js-menu mdl-js-ripple-effect" for="more-button">
+                        <li v-for="item in menu_items" :id="item.name + '-btn'" :key="item.name" v-mdl class="mdl-menu__item" @click.prevent="dispatchMenuButton(item.name)">
+                            <a :id="item.name + '-conversation'" class="mdl-menu__item" href="#">{{ item.title }}</a>
+                        </li>
                     </ul>
                 </div>
             </div>  <!-- End Toolbar-Inner -->
@@ -32,20 +35,17 @@
 
         <!-- Content Wrapper -->
         <div id="wrapper" :style="{ marginLeft: margin + 'px'}">
-
             <!-- Side Menu -->
             <div id="side-menu">
-                <sidebar v-mdl>
-                </sidebar>
+                <sidebar v-mdl />
             </div> <!-- End Side Menu -->
 
             <!-- Content Area -->
             <div id="content">
                 <main class="mdl-layout__content">
-                    <router-view></router-view>
+                    <router-view />
                 </main>
             </div> <!-- End Content Area -->
-
         </div> <!-- End Content Wrapper -->
 
         <!-- Loading splash page -->
@@ -56,36 +56,184 @@
         <ImageViewer />
 
         <div class="file-drag"></div>
+
+        <!-- For external app access - like Franz, Rambox, or Station -->
+        <div id="unread_count">
+            {{ unread_count }}
+        </div>
     </div>
 </template>
 
 <script>
 
-import Vue from 'vue'
-import { i18n } from '@/utils'
+import Vue from 'vue';
+import { i18n } from '@/utils';
 
-import '@/lib/sjcl.js'
-import '@/lib/hmacsha1.js'
+import '@/lib/sjcl.js';
+import '@/lib/hmacsha1.js';
 
-import { Util, Crypto, Api, MediaLoader, SessionCache, ShortcutKeys, Platform } from '@/utils'
+import { Util, Crypto, Api, MediaLoader, SessionCache, ShortcutKeys } from '@/utils';
 
-import Sidebar from '@/components/Sidebar.vue'
-import Conversations from '@/components/Conversations/'
-import Splash from '@/components/Splash.vue'
-import Snackbar from '@/components/Snackbar.vue'
-import ImageViewer from '@/components/ImageViewer.vue'
+import Sidebar from '@/components/Sidebar.vue';
+import Snackbar from '@/components/Snackbar.vue';
+import ImageViewer from '@/components/ImageViewer.vue';
+
+// Vue.config.devtools = true;
+// Vue.config.performance = true;
 
 export default {
-    name: 'app',
+    name: 'App',
+    components: {
+        Sidebar,
+        Snackbar,
+        ImageViewer
+    },
+
+    data () {
+        return {
+            margin: 0,
+            loading: this.$store.state.loading,
+            mm: null,
+            toolbar_color: this.$store.state.theme_global_default,
+            menu_items: [],
+            hour: null,
+        };
+    },
+
+    computed: {
+        icon_class () {
+            return {
+                'logo': this.full_theme && !this.apply_appbar_color,
+                'logo_dark': this.full_theme && this.apply_appbar_color,
+                'menu_toggle': !this.full_theme && !this.apply_appbar_color,
+                'menu_toggle_dark': !this.full_theme && this.apply_appbar_color,
+            };
+        },
+
+        sidebar_open () { // Sidebar_open state
+            return this.$store.state.sidebar_open;
+        },
+
+        full_theme () { // Full_theme state
+            return this.$store.state.full_theme;
+        },
+
+        theme_str () {
+            const theme = this.$store.state.theme_base;
+
+            // If day/night, return dark/light
+            if (theme == "day_night")
+                return this.is_night ? "dark" : "";
+
+            if (theme == "black")
+                return 'dark black';
+
+            return theme; // Otherwise return stored theme
+        },
+
+        is_night () { // If "night" (between 20 and 7)
+            return this.hour < 7 || this.hour >= 20 ? true : false;
+        },
+
+        theme_toolbar () { // Determine toolbar color
+            if (!this.apply_appbar_color)  // If not color toolbar
+                return this.default_toolbar_color;
+
+            if (this.$store.state.theme_use_global) // If use global
+                return this.$store.state.theme_global_default;
+
+            return this.toolbar_color;
+        },
+
+        default_toolbar_color () { // Determine default colors
+            if (!this.apply_appbar_color) {
+                if (this.theme_str.indexOf('black') >= 0) {
+                    return "#000000";
+                } else if (this.theme_str.indexOf('dark') >= 0) {
+                    return "#202024";
+                } else {
+                    return "#FFFFFF";
+                }
+            } else if (this.$store.state.theme_global_default) {
+                return this.$store.state.theme_global_default;
+            } else {
+                return "#1775D2";
+            }
+        },
+
+        text_color () { // Determines toolbar text color (and menu icon color)
+            try {
+                if (!this.apply_appbar_color) {
+                    if (this.theme_str.indexOf('black') >= 0) {
+                        return "#FFF";
+                    } else if (this.theme_str.indexOf('dark') >= 0) {
+                        return "#FFF";
+                    } else {
+                        return "#000";
+                    }
+                }
+
+                if (this.toolbar_color.indexOf("rgb(") > -1 || this.toolbar_color.indexOf("rgba(") > -1) {
+                    return Util.getTextColorBasedOnBackground(this.toolbar_color);
+                } else {
+                    return "#FFF";
+                }
+            } catch (err) {
+                return "#FFF";
+            }
+        },
+
+        show_search () {
+            return this.$route.name.indexOf('conversations-list') > -1;
+        },
+
+        apply_appbar_color () {
+            if (this.toolbar_color == 'rgba(255,255,255,1)') {
+                // They have manually set the color to white, for the app bar.
+                // If we didn't do this, then they wouldn't be able to see the settings, refresh, search, etc.
+                return false;
+            }
+            return this.$store.state.theme_apply_appbar_color;
+        },
+        unread_count () { // For external app access - like Franz, Rambox, or Station
+            return this.$store.state.unread_count;
+        }
+    },
+    watch: {
+        '$route' () { // To update dropdown menu
+            this.populateMenuItems();
+        },
+        '$store.state.colors_default' (to) { // Handle theme changes
+            this.updateTheme(to);
+        },
+        'theme_str' (to, from) { // Handles updating the body class
+            this.updateBodyClass(to, from);
+        },
+        'theme_toolbar' (to) { // Handle toolbar color change
+            Vue.nextTick(() => {
+                const toolbar = this.$el.querySelector("#toolbar");
+                Util.materialColorChange(toolbar, to);
+            });
+        },
+        '$store.state.title' (to) {
+            if (to.length > 0) {
+                document.title = to;
+            } else {
+                document.title = "Pulse SMS";
+            }
+        }
+
+    },
 
     beforeCreate () {
         this.$store.commit('title', "Pulse SMS");
 
         // If logged in (account_id) then setup crypto
-        if(this.$store.state.account_id != '')
+        if(this.$store.state.account_id != '') {
             Crypto.setupAes();
-        else
+        } else if (this.$route.name != 'login') {
             this.$router.push('login');
+        }
 
         navigator.serviceWorker && navigator.serviceWorker.register('/service-worker.js').then((registration) => {
             console.log('Registered SW with scope: ', registration.scope);
@@ -114,7 +262,7 @@ export default {
         this.updateBodyClass(this.theme_str, ""); // Enables global theme
 
         // Handle resizing for left margin size
-        window.addEventListener('resize', this.handleResize)
+        window.addEventListener('resize', this.handleResize);
         this.handleResize(); // Get initial margin size
 
         // Setup firebase
@@ -134,16 +282,16 @@ export default {
         if (this.$store.state.account_id != '') {
             this.applicationStart();
         } else { // Otherwise, add listener for start-app event
-                 // This allows for another part of the app to setup parts of the app
-                 // Which may have unmet requirements (such as login)
+            // This allows for another part of the app to setup parts of the app
+            // Which may have unmet requirements (such as login)
             this.$store.state.msgbus.$on('start-app', this.applicationStart);
             this.mount_view = true;
         }
 
         // Setup global button listeners
-        this.$store.state.msgbus.$on('settings-btn', () => this.$router.push('/settings'));
-        this.$store.state.msgbus.$on('account-btn', () => this.$router.push('/account'));
-        this.$store.state.msgbus.$on('help-feedback-btn', () => this.$router.push('/help_feedback'));
+        this.$store.state.msgbus.$on('settings-btn', this.settings);
+        this.$store.state.msgbus.$on('account-btn', this.account);
+        this.$store.state.msgbus.$on('help-feedback-btn', this.helpAndFeedback);
         this.$store.state.msgbus.$on('logout-btn', this.logout);
 
         // Request notification permissions if setting is on.
@@ -156,25 +304,15 @@ export default {
     },
 
     beforeDestroy () { // Remove event listeners
-        window.removeEventListener('resize', this.handleResize)
+        window.removeEventListener('resize', this.handleResize);
 
-        this.$store.state.msgbus.$off('start-app');
-        this.$store.state.msgbus.$off('settings-btn');
-        this.$store.state.msgbus.$off('logout-btn');
+        this.$store.state.msgbus.$off('start-app', this.applicationStart);
+        this.$store.state.msgbus.$off('settings-btn', this.settings);
+        this.$store.state.msgbus.$off('account-btn', this.account);
+        this.$store.state.msgbus.$off('help-feedback-btn', this.helpAndFeedback);
+        this.$store.state.msgbus.$off('logout-btn', this.logout);
 
-        this.mm.closeWebSocket();
-
-    },
-
-    data () {
-        return {
-            margin: 0,
-            loading: this.$store.state.loading,
-            mm: null,
-            toolbar_color: this.$store.state.theme_global_default,
-            menu_items: [],
-            hour: null,
-        }
+        this.stream.close();
     },
 
     methods: {
@@ -187,7 +325,7 @@ export default {
          */
         applicationStart () {
             // Setup the API (Open websocket)
-            this.mm = new Api();
+            this.stream = new Api.stream();
 
             // Start listening for shortcut keys
             this.shortcuts = new ShortcutKeys();
@@ -200,10 +338,10 @@ export default {
 
             setTimeout(() => {
                 // Fetch contacts for cache
-                Api.fetchContacts().then((resp) => this.processContacts(resp));
+                Api.contacts.get().then((resp) => this.processContacts(resp));
 
                 // Grab user settings from server and store in local storage
-                Api.fetchSettings();
+                Api.account.settings.get();
             }, 1500);
 
             // Interval check to maintain socket
@@ -219,9 +357,9 @@ export default {
                     return;
 
                 // Else, open new API and force refresh
-                this.mm.closeWebSocket()
-                this.mm = new Api();
-                this.mm.has_diconnected = true; // Initialize new api with has disconnected
+                this.stream.close();
+                this.stream = new Api.stream();
+                this.stream.has_diconnected = true; // Initialize new api with has disconnected
 
                 this.calculateHour();
 
@@ -265,7 +403,7 @@ export default {
             }
 
             // Set margin
-            this.margin = margin
+            this.margin = margin;
             this.$store.state.msgbus.$emit('newMargin', margin);
         },
 
@@ -278,7 +416,7 @@ export default {
         populateMenuItems () {
 
             // Static items!
-            const items = [ ]
+            const items = [ ];
 
             // On thread add Delete, Blacklist, & Archive/unarchive
             if (this.$route.name.indexOf('thread') > -1) {
@@ -297,7 +435,7 @@ export default {
                     { 'name': "help-feedback", 'title': i18n.t('menus.help') },
                     { 'name': "settings", 'title': i18n.t('menus.settings')},
                     { 'name': "logout", 'title': i18n.t('menus.logout')}
-                )
+                );
             }
 
             return this.menu_items = items;
@@ -335,6 +473,18 @@ export default {
             this.toolbar_color = color;
         },
 
+        settings () {
+            this.$router.push('/settings');
+        },
+
+        account () {
+            this.$router.push('/account');
+        },
+
+        helpAndFeedback () {
+            this.$router.push('/help_feedback');
+        },
+
         /**
          * Handle logout
          * Removes sensative data, clears local storage,
@@ -355,7 +505,7 @@ export default {
             // Clear local storage (browser)
             window.localStorage.clear();
             // Close socket
-            this.mm.closeWebSocket();
+            this.stream.close();
 
             Util.snackbar("You've been logged out");
 
@@ -371,7 +521,7 @@ export default {
         updateBodyClass (to, from) {
             const body = this.$el.parentElement; // select body
             // Add and remove classes
-            const classes = body.className.replace(from, "")
+            const classes = body.className.replace(from, "");
             body.className = classes + " " + to;
         },
 
@@ -381,11 +531,11 @@ export default {
         calculateHour () {
 
             // Determines ms to the next hour
-            const nextHour = (60 - new Date().getMinutes()) * 60 * 1000
+            const nextHour = (60 - new Date().getMinutes()) * 60 * 1000;
             this.hour = new Date().getHours(); // Get current hour
 
             setTimeout(() => { // Rerun function at the next hour
-                this.calculateHour()
+                this.calculateHour();
             }, nextHour + 2000);
         },
 
@@ -436,107 +586,8 @@ export default {
                 body.className += ` ${LARGER_APP_BAR} `;
 
         }
-    },
-
-    computed: {
-        icon_class () {
-            return {
-                'logo': this.full_theme && !this.$store.state.theme_apply_appbar_color,
-                'logo_dark': this.full_theme && this.$store.state.theme_apply_appbar_color,
-                'menu_toggle': !this.full_theme && !this.$store.state.theme_apply_appbar_color,
-                'menu_toggle_dark': !this.full_theme && this.$store.state.theme_apply_appbar_color,
-            }
-        },
-
-        sidebar_open () { // Sidebar_open state
-            return this.$store.state.sidebar_open;
-        },
-
-        full_theme () { // Full_theme state
-            return this.$store.state.full_theme;
-        },
-
-        theme_str () {
-            const theme = this.$store.state.theme_base;
-
-            // If day/night, return dark/light
-            if (theme == "day_night")
-                return this.is_night ? "dark" : "";
-
-            if (theme == "black")
-                return 'dark black';
-
-            return theme; // Otherwise return stored theme
-        },
-
-        is_night () { // If "night" (between 20 and 7)
-            return this.hour < 7 || this.hour >= 20 ? true : false;
-        },
-
-        theme_toolbar () { // Determine toolbar color
-            if (!this.$store.state.theme_apply_appbar_color)  // If not color toolbar
-                return this.default_toolbar_color;
-
-            if (this.$store.state.theme_use_global) // If use global
-                return this.$store.state.theme_global_default;
-
-            return this.toolbar_color;
-        },
-
-        default_toolbar_color () { // Determine default colors
-            if (!this.$store.state.theme_apply_appbar_color) {
-                if (this.theme_str.indexOf('black') >= 0) {
-                    return "#000000";
-                } else if (this.theme_str.indexOf('dark') >= 0) {
-                    return "#202b30";
-                } else {
-                    return "#FFFFFF";
-                }
-            } else if (this.$store.state.theme_global_default) {
-                return this.$store.state.theme_global_default;
-            } else {
-                return "#009688";
-            }
-        },
-
-        text_color () { // Determines toolbar text color
-            if (this.$store.state.theme_apply_appbar_color)
-                return "#fff";
-        }
-    },
-    watch: {
-        '$route' (to, from) { // To update dropdown menu
-            this.populateMenuItems();
-        },
-        '$store.state.colors_default' (to) { // Handle theme changes
-            this.updateTheme(to);
-        },
-        'theme_str' (to, from) { // Handles updating the body class
-            this.updateBodyClass(to, from)
-        },
-        'theme_toolbar' (to, from) { // Handle toolbar color change
-            Vue.nextTick(() => {
-                const toolbar = this.$el.querySelector("#toolbar");
-                Util.materialColorChange(toolbar, to);
-            })
-        },
-        '$store.state.title' (to) {
-            if (to.length > 0) {
-                document.title = to;
-            } else {
-                document.title = "Pulse SMS";
-            }
-        }
-
-    },
-    components: {
-        Sidebar,
-        Conversations,
-        Splash,
-        Snackbar,
-        ImageViewer
     }
-}
+};
 </script>
 
 <style lang="scss">
@@ -706,6 +757,11 @@ export default {
         }
     }
 
+    /* For external app access - like Franz, Rambox, or Station */
+    #unread_count {
+        display: none;
+    }
+
     .mdl-layout__content {
         width: 100%;
         height: 100%;
@@ -782,13 +838,17 @@ export default {
         color: white;
     }
 
-    .emojione {
+    .link-received-dark {
+        color: black;
+    }
+
+    .joypixels {
         height: 16px;
         width: 16px;
     }
 
     .message {
-        .emojione {
+        .joypixels {
             height: 24px;
             width: 24px;
         }

@@ -10,15 +10,19 @@ export const KEYS  = {
     NOTIFICATIONS: 'notifications',
     ENTER_TO_SEND: 'enter_to_send',
     LARGER_APP_BAR: 'larger_app_bar',
+    UNREAD_COUNT_IN_SIDEBAR: 'unread_count_in_sidebar',
+    SUBSCRIPTION_TYPE: 'subscription_type',
     THEME: {
         BASE: 'theme_base',
         GLOBAL_DEFAULT: 'theme_global_default',
         GLOBAL_DARK: 'theme_global_dark',
         GLOBAL_ACCENT: 'theme_global_accent',
         USE_GLOBAL: 'theme_use_global',
-        APPLY_APPBAR_COLOR: 'theme_apply_appbar_color'
+        APPLY_APPBAR_COLOR: 'theme_apply_appbar_color',
+        CONVERSATION_CATEGORIES: 'conversation_categories',
+        MESSAGE_TIMESTAMP: 'message_timestamp'
     }
-}
+};
 
 const empty_str = "\"\"";
 
@@ -32,14 +36,18 @@ export const state = {
     conversations: JSON.parse( window.localStorage.getItem(KEYS.CONVERSATIONS) || '{}' ),
 
     theme_base: JSON.parse( window.localStorage.getItem(KEYS.THEME.BASE) || "\"light\"" ),
-    theme_global_default: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DEFAULT) || "\"#009688\"" ),
-    theme_global_dark: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DARK) || "\"#00695C\"" ),
-    theme_global_accent: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_ACCENT) || "\"#FFAB40\"" ),
+    theme_global_default: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DEFAULT) || "\"#1775D2\"" ),
+    theme_global_dark: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DARK) || "\"#1665C0\"" ),
+    theme_global_accent: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_ACCENT) || "\"#FF6E40\"" ),
     theme_use_global: JSON.parse( window.localStorage.getItem(KEYS.THEME.USE_GLOBAL) || "false" ),
     theme_apply_appbar_color: JSON.parse( window.localStorage.getItem(KEYS.THEME.APPLY_APPBAR_COLOR) || "true" ),
+    theme_conversation_categories: JSON.parse( window.localStorage.getItem(KEYS.THEME.CONVERSATION_CATEGORIES) || "true" ),
+    theme_message_timestamp: JSON.parse( window.localStorage.getItem(KEYS.THEME.MESSAGE_TIMESTAMP) || "false" ),
     notifications: JSON.parse( window.localStorage.getItem(KEYS.NOTIFICATIONS) || "true" ),
     enter_to_send: JSON.parse( window.localStorage.getItem(KEYS.ENTER_TO_SEND) || "true" ),
     larger_app_bar: JSON.parse( window.localStorage.getItem(KEYS.LARGER_APP_BAR) || "false" ),
+    unread_count_in_sidebar: JSON.parse( window.localStorage.getItem(KEYS.UNREAD_COUNT_IN_SIDEBAR) || "false" ),
+    subscription_type: window.localStorage.getItem(KEYS.SUBSCRIPTION_TYPE) || 1,
 
     /* Per session */
     aes: '',
@@ -48,10 +56,11 @@ export const state = {
     title: "Pulse SMS",
     loading: true,
     hotkey_navigation: false,
+    unread_count: 0,
 
-    colors_default: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DEFAULT) || "\"#009688\"" ),
-    colors_dark: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DARK) || "\"#00695C\"" ),
-    colors_accent: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_ACCENT) || "\"#FFAB40\"" ),
+    colors_default: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DEFAULT) || "\"#1775D2\"" ),
+    colors_dark: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_DARK) || "\"#1665C0\"" ),
+    colors_accent: JSON.parse( window.localStorage.getItem(KEYS.THEME.GLOBAL_ACCENT) || "\"#FF6E40\"" ),
     colors_text: "#ffffff",
 
     msgbus: new Vue(),
@@ -67,7 +76,7 @@ export const state = {
 
     session_conversations: { },
     session_messages: { }
-}
+};
 
 export const getters = {
     getConversationData: (state) => (id) => {
@@ -76,12 +85,15 @@ export const getters = {
     getContact: (state) => (id) => {
         return state.contacts[id];
     }
-}
+};
 
 export const mutations = {
     title: (state, title) => state.title = title,
     loading: (state, loading) => state.loading = loading,
     hotkey_navigation: (state, hotkey_navigation) => state.hotkey_navigation = hotkey_navigation,
+    unread_count: (state, unread_count) => state.unread_count = unread_count,
+    increment_unread_count: (state) => state.unread_count++,
+    decrement_unread_count: (state) => state.unread_count--,
     full_theme: (state, full_theme) => state.full_theme = full_theme,
     sidebar_open: (state, sidebar_open) => state.sidebar_open = sidebar_open,
     account_id: (state, account_id) => state.account_id = account_id,
@@ -95,9 +107,13 @@ export const mutations = {
     theme_global_accent: (state, theme_global_accent) => state.theme_global_accent = theme_global_accent,
     theme_use_global: (state, theme_use_global) => state.theme_use_global = theme_use_global,
     theme_apply_appbar_color: (state, theme_apply_appbar_color) => state.theme_apply_appbar_color = theme_apply_appbar_color,
+    theme_conversation_categories: (state, theme_conversation_categories) => state.theme_conversation_categories = theme_conversation_categories,
+    theme_message_timestamp: (state, theme_message_timestamp) => state.theme_message_timestamp = theme_message_timestamp,
     notifications: (state, notifications) => state.notifications = notifications,
     enter_to_send: (state, enter_to_send) => state.enter_to_send = enter_to_send,
     larger_app_bar: (state, larger_app_bar) => state.larger_app_bar = larger_app_bar,
+    unread_count_in_sidebar: (state, unread_count_in_sidebar) => state.unread_count_in_sidebar = unread_count_in_sidebar,
+    subscription_type: (state, subscription_type) => state.subscription_type = subscription_type,
     media_loader: (state, media_loader) => state.media_loader = media_loader,
     colors_default: (state, colors_default) => state.colors_default = colors_default,
     colors_dark: (state, colors_dark) => state.colors_dark = colors_dark,
@@ -129,23 +145,23 @@ export const mutations = {
     },
     conversations: (state, payload) => {
         if(!Array.isArray(payload))
-            payload = [ payload ]
+            payload = [ payload ];
 
         for(let i = 0; i < payload.length; i++)
-            state.conversations[payload[i].id] = payload[i]
+            state.conversations[payload[i].id] = payload[i];
     },
     contacts: (state, payload) => {
         if(!Array.isArray(payload))
-            payload = [ payload ]
+            payload = [ payload ];
 
         for(let i = 0; i < payload.length; i++)
-            state.contacts[payload[i].id] = payload[i]
+            state.contacts[payload[i].id] = payload[i];
     },
-    clearContacts: (state, payload) => {
+    clearContacts: (state) => {
         state.contacts = {};
     }
-}
+};
 
 export const actions = {
 
-}
+};

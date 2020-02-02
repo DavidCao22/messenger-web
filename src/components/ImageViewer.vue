@@ -1,6 +1,6 @@
 <template>
     <transition name="fade">
-        <div class="lightbox-wrapper" v-if="display">
+        <div v-if="display" class="lightbox-wrapper">
             <div class="lightbox-toolbar">
                 <button id="close-button" class="mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" @click="close">
                     <i class="material-icons material-icons-white">cancel</i>
@@ -14,27 +14,33 @@
                 <img class="full-image" :src="image_data" alt="Image">
             </div>
         </div>
-  </transition>
+    </transition>
 </template>
 
 <script>
 
-import Vue from 'vue'
-import store from '@/store/'
+import store from '@/store/';
 
 export default {
-    name: 'imageviewer',
-
-    mounted () {
-        store.state.msgbus.$on('showImage', this.showImage);
-        store.state.msgbus.$on('hotkey-esc', this.close);
-    },
+    name: 'Imageviewer',
 
     data () {
         return {
             image_data: "",
             display: false,
-        }
+        };
+    },
+
+    mounted () {
+        store.state.msgbus.$on('showImage', this.showImage);
+        store.state.msgbus.$on('hideImage', this.close);
+        store.state.msgbus.$on('hotkey-esc', this.close);
+    },
+
+    beforeDestroy () {
+        this.$store.state.msgbus.$off('showImage', this.showImage);
+        this.$store.state.msgbus.$off('hideImage', this.close);
+        this.$store.state.msgbus.$off('hotkey-esc', this.close);
     },
 
     methods: {
@@ -45,7 +51,7 @@ export default {
 
         download () {
             var link = document.createElement("a");
-            link.download = "pulse-image.jpg";
+            link.download = `pulse-image-${new Date().getTime()}.jpg`;
             link.href = document.querySelector('.full-image').src;
             document.body.appendChild(link);
 
@@ -53,7 +59,7 @@ export default {
             document.body.removeChild(link);
         },
 
-        downloadUri (uri, name) {
+        downloadUri () {
 
         },
 
@@ -68,7 +74,7 @@ export default {
                 });
         }
     }
-}
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

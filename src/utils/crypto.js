@@ -1,10 +1,10 @@
-import '@/lib/sjcl.js'
-import '@/lib/hmacsha1.js'
+import { sjcl } from '@/lib/sjcl.js';
+import { hmacSHA1 } from '@/lib/hmacsha1.js';
 
-import Hash from 'object-hash'
-import store from '@/store'
-import emojione from 'emojione'
-import { Util } from '@/utils'
+import Hash from 'object-hash';
+import store from '@/store';
+import joypixels from 'emoji-toolkit';
+import { Util } from '@/utils';
 
 export default class Crypto {
     /**
@@ -14,8 +14,8 @@ export default class Crypto {
      */
     static setupAes() {
         // Setup key
-        const combinedKey = store.state.account_id + ":" + store.state.hash + "\n"
-        const key = sjcl.misc.pbkdf2(combinedKey, store.state.salt, 10000, 256, hmacSHA1)
+        const combinedKey = store.state.account_id + ":" + store.state.hash + "\n";
+        const key = sjcl.misc.pbkdf2(combinedKey, store.state.salt, 10000, 256, hmacSHA1);
 
         store.commit('aes', new sjcl.cipher.aes(key)); // Store aes
         sjcl.beware["CBC mode is dangerous because it doesn't protect message integrity."]();
@@ -37,13 +37,13 @@ export default class Crypto {
         try {
             convo.titleNoEmoji = Crypto.decrypt(convo.title);
             convo.title = convo.titleNoEmoji;
-            // convo.title = emojione.unicodeToImage(convo.titleNoEmoji);
+            // convo.title = joypixels.toImage(convo.titleNoEmoji);
 
             convo.snippetNoEmoji = Crypto.decrypt(convo.snippet).replace(/\n/g, " ");
             convo.snippetNoEmoji = convo.snippetNoEmoji.replace("<i>", "").replace("</i>", "");
-            convo.snippet = emojione.unicodeToImage(Util.entityEncode(convo.snippetNoEmoji));
+            convo.snippet = joypixels.toImage(Util.entityEncode(convo.snippetNoEmoji));
         } catch (err) {
-            return null
+            return null;
         }
 
         // Handle phone number(s) if applicable
@@ -67,7 +67,7 @@ export default class Crypto {
      * @return decrypted message
      */
     static decryptMessage (message) {
-        // Removes miliiseconds from timestamp
+        // Removes milliseconds from timestamp
         message.timestamp = message.timestamp / 1000 >> 0; // Remove ms
         message.timestamp = message.timestamp * 1000; // Add back zero timestamp
 
@@ -80,12 +80,12 @@ export default class Crypto {
             if (message.mime_type.indexOf("media") > -1) {
                 message.data = Util.entityEncode(message.dataNoEmoji);
             } else {
-                message.data = emojione.unicodeToImage(Util.entityEncode(message.dataNoEmoji));
+                message.data = joypixels.toImage(Util.entityEncode(message.dataNoEmoji));
             }
 
             message.message_from = Crypto.decrypt(message.message_from);
         } catch (err) {
-            return null
+            return null;
         }
 
         if (typeof message.device_id == "undefined") // Correct for "id"
@@ -133,7 +133,7 @@ export default class Crypto {
             }
 
             if (blacklist.phrase) {
-                blacklist.phrase = Crypto.decrypt(blacklist.phrase)
+                blacklist.phrase = Crypto.decrypt(blacklist.phrase);
             }
         } catch (err) {
             return null;
@@ -247,7 +247,7 @@ export default class Crypto {
         const parts = data.split("-:-");
         return sjcl.codec.utf8String.fromBits(
             sjcl.mode.cbc.decrypt(store.state.aes, sjcl.codec.base64.toBits(parts[1]),
-            sjcl.codec.base64.toBits(parts[0]), null)
+                sjcl.codec.base64.toBits(parts[0]), null)
         );
     }
 
@@ -259,7 +259,7 @@ export default class Crypto {
         const parts = data.split("-:-");
         return sjcl.codec.base64.fromBits(
             sjcl.mode.cbc.decrypt(store.state.aes, sjcl.codec.base64.toBits(parts[1]),
-            sjcl.codec.base64.toBits(parts[0]), null));
+                sjcl.codec.base64.toBits(parts[0]), null));
     }
     /**
      * encrypt

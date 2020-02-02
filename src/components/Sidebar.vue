@@ -1,12 +1,23 @@
 <template>
-    <div> <!-- sidebar-outer-holder -->
-        <div id="sidebar" v-bind:style="marginLeft"> <!-- Sidebar-internal -->
+    <div>
+        <!-- sidebar-outer-holder -->
+        <div id="sidebar" :style="marginLeft">
+            <!-- Sidebar-internal -->
             <div id="drawer-holder">
                 <ul id="drawer-links">
                     <li id="conversations-link" @click="routeTo('conversations')">
                         <div class="link-card mdl-card mdl-js-button mdl-js-ripple-effect" :class="{ active: is_active('conversations') }">
                             <img src="../assets/images/holder.gif" width="24" height="24" class="icon conversations">
                             {{ $t('sidebar.conversations') }}
+                            <span v-if="display_unread">
+                                ({{ unread_count }})
+                            </span>
+                        </div>
+                    </li>
+                    <li id="unread-link" @click="routeTo('unread')">
+                        <div class="link-card mdl-card mdl-js-button mdl-js-ripple-effect" :class="{ active: is_active('unread') }">
+                            <img src="../assets/images/holder.gif" width="24" height="24" class="icon unread">
+                            {{ $t('sidebar.unreadconversations') }}
                         </div>
                     </li>
                     <li id="private-link" @click="routeTo('private')">
@@ -39,14 +50,19 @@
                             {{ $t('sidebar.blacklist') }}
                         </div>
                     </li>
+                    <li v-if="showConversations">
+                        <div class="link-card mdl-card">
+                            <img src="../assets/images/holder.gif" width="24" height="24" class="icon search">
+                            <input id="search-bar" v-model="searchQuery" class="quick_find fixed_pos" type="text text_box" :placeholder="$t('sidebar.searchconversations')" autocomplete="off" autocorrect="off" spellcheck="false">
+                        </div>
+                    </li>
                 </ul>
                 <!-- If route is not conversation list -->
 
                 <transition name="slide-left">
-                    <conversations v-if="showConversations" small="true"></conversations>
+                    <conversations v-if="showConversations" small="true" />
                 </transition>
                 <!-- End if -->
-
             </div>
         </div> <!-- End sidebar-internal -->
 
@@ -55,17 +71,69 @@
             <div v-if="!full_theme && open" id="sidebar-overlay" @click="close_drawer"></div>
         </transition>
         <!-- End if -->
-
     </div>
 </template>
 
 <script>
 
-import Conversations from '@/components/Conversations/'
-import { Util } from '@/utils'
+import Conversations from '@/components/Conversations/';
+import { Util } from '@/utils';
 
 export default {
-    name: 'sidebar',
+    name: 'Sidebar',
+
+    components: {
+        Conversations
+    },
+
+    data () {
+        return {
+            links: {
+                'conversations': { name: 'conversations-list'},
+                'unread': { name: 'conversations-list-unread'},
+                'archive': { name: 'conversations-list-archived'},
+                'blacklists': { name: 'blacklists'},
+                'private': { name: 'conversations-list-private' },
+                'folders': { name: 'folders' },
+                'scheduled': { name: 'scheduled-messages' }
+            },
+            listeners: [],
+            searchQuery: ""
+        };
+    },
+
+    computed: {
+        marginLeft () { // Handles margins
+            if(this.open)
+                return "margin-left: 0px;";
+            else
+                return "margin-left: -269px;";
+        },
+        open () { // Sidebar_open state
+            return this.$store.state.sidebar_open;
+        },
+        full_theme () { // Full_theme state
+            return this.$store.state.full_theme;
+        },
+        showConversations () {
+            return this.$route.name != 'conversations-list'
+                && this.$store.state.account_id != '';
+        },
+        display_unread () {
+            return this.$store.state.unread_count_in_sidebar;
+        },
+        unread_count () {
+            return this.$store.state.unread_count;
+        }
+    },
+
+    watch: {
+
+        "searchQuery" (to) {
+            this.$store.state.msgbus.$emit('searchUpdated', to);
+        }
+
+    },
 
     mounted () {
         let sidebar = this.$el.querySelector("#sidebar");
@@ -81,7 +149,7 @@ export default {
                 e.preventDefault();
                 e.returnValue = false;
                 return false;
-            }
+            };
 
             if (!up && -delta > scrollHeight - height - scrollTop) {
                 // Scrolling down, but this will take us past the bottom.
@@ -101,20 +169,6 @@ export default {
         Util.removeEventListeners(this.listeners);
     },
 
-    data () {
-        return {
-            links: {
-                'conversations': { name: 'conversations-list'},
-                'archive': { name: 'conversations-list-archived'},
-                'blacklists': { name: 'blacklists'},
-                'private': { name: 'conversations-list-private' },
-                'folders': { name: 'folders' },
-                'scheduled': { name: 'scheduled-messages' }
-            },
-            listeners: []
-        }
-    },
-
     methods: {
         /**
          * route to
@@ -123,8 +177,9 @@ export default {
          * @param link - link to route too
          */
         routeTo (link) {
-            this.close_drawer()
-            this.$router.push(this.links[link])
+            this.close_drawer();
+            this.$router.push(this.links[link]);
+            this.searchQuery = "";
         },
 
         /**
@@ -143,6 +198,10 @@ export default {
         is_active(route) {
             if (route == 'conversations' &&
                 (this.$route.name == 'conversations-list' || this.$route.name == 'thread'))
+                return true;
+
+            if (route == 'unread' &&
+                (this.$route.name == 'conversations-list-unread'))
                 return true;
 
             if (route == 'private' &&
@@ -167,31 +226,8 @@ export default {
 
             return false;
         }
-    },
-
-    computed: {
-        marginLeft () { // Handles margins
-            if(this.open)
-                return "margin-left: 0px;";
-            else
-                return "margin-left: -269px;";
-        },
-        open () { // Sidebar_open state
-            return this.$store.state.sidebar_open;
-        },
-        full_theme () { // Full_theme state
-            return this.$store.state.full_theme;
-        },
-        showConversations () {
-            return this.$route.name != 'conversations-list'
-                && this.$store.state.account_id != '';
-        }
-    },
-
-    components: {
-        Conversations
     }
-}
+};
 </script>
 
 <style lang="scss" scoped>
@@ -199,6 +235,14 @@ export default {
 
     body.dark #sidebar {
         background-color: $bg-dark;
+
+        .quick_find {
+            color: white;
+        }
+
+        .quick_find::placeholder {
+            color: white;
+        }
 
         #drawer-links li .link-card {
             background-color: $bg-dark;
@@ -226,12 +270,20 @@ export default {
                 background: url(../assets/images/vector/private-dark.svg) 0 0 no-repeat !important;
             }
 
+            &.unread {
+                background: url(../assets/images/vector/unread-dark.svg) 0 0 no-repeat !important;
+            }
+
             &.folders {
                 background: url(../assets/images/vector/folder-dark.svg) 0 0 no-repeat !important;
             }
 
             &.blacklist {
                 background: url(../assets/images/vector/blacklist-dark.svg) 0 0 no-repeat !important;
+            }
+
+            &.search {
+                background: url(../assets/images/vector/search-dark.svg) 0 0 no-repeat !important;
             }
         }
     }
@@ -333,6 +385,10 @@ export default {
                         background: url(../assets/images/vector/private.svg) 0 0 no-repeat;
                     }
 
+                    &.unread {
+                        background: url(../assets/images/vector/unread.svg) 0 0 no-repeat;
+                    }
+
                     &.folders {
                         background: url(../assets/images/vector/folder.svg) 0 0 no-repeat;
                     }
@@ -343,6 +399,10 @@ export default {
 
                     &.blacklist {
                         background: url(../assets/images/vector/blacklist.svg) 0 0 no-repeat;
+                    }
+
+                    &.search {
+                        background: url(../assets/images/vector/search.svg) 0 0 no-repeat;
                     }
                 }
             }
@@ -376,5 +436,31 @@ export default {
     .slide-left-enter, .slide-left-leave-to {
         transform: translateX(-$sidebar_margin);
         opacity: 0;
+    }
+
+    #quick_find {
+      white-space: nowrap;
+      padding-top: 5px;
+      text-align: right;
+    }
+
+    .quick_find {
+      margin-top: 3px;
+      border: 0px solid white;
+      font-size: 16px;
+      background-color: transparent;
+      color: black;
+      background-position: 10px 10px;
+      background-repeat: no-repeat;
+      -webkit-transition: width 0.4s ease-in-out;
+      transition: width 0.4s ease-in-out;
+    }
+
+    .quick_find:focus {
+      outline: none !important;
+    }
+
+    .quick_find::placeholder {
+        color: black;
     }
 </style>

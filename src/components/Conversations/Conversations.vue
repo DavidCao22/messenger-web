@@ -1,24 +1,32 @@
 <template>
     <div id="conversation-list" class="page-content">
-
         <!-- Spinner On load -->
-        <spinner class="spinner" v-if="conversations.length == 0 && loading"></spinner>
+        <spinner v-if="conversations.length == 0 && loading" class="spinner" />
 
-        <div id="quick_find" v-if="showSearch">
-           <div>
-             <input v-model="searchQuery" id="search-bar" class="quick_find fixed_pos" type="text text_box" placeholder="Search conversations..." autocomplete="off" autocorrect="off" spellcheck="false">
-           </div>
-         </div>
+        <div v-if="showSearch" id="quick_find">
+            <div>
+                <input id="search-bar" v-model="searchQuery" class="quick_find fixed_pos" type="text text_box" placeholder="Search conversations..." autocomplete="off" autocorrect="off" spellcheck="false">
+            </div>
+        </div>
 
         <!-- If no Messages -->
-        <p class="empty-message" v-if="conversations.length == 0 && !loading">{{ $t('conversations.noconv') }}</p>
+        <p v-if="conversations.length == 0 && !loading" class="empty-message">
+            {{ $t('conversations.noconv') }}
+        </p>
 
         <!-- Conversation items -->
         <transition-group name="flip-list" tag="div">
-            <component v-for="conversation in conversations" :is="conversation.title ? 'ConversationItem' : 'DayLabel'" :conversation-data="conversation" :archive="isArchive" :small="small" :key="conversation.hash ? conversation.hash : conversation.label"/>
+            <component :is="conversation.title ? 'ConversationItem' : 'DayLabel'"
+                       v-for="conversation in conversations"
+                       :key="conversation.hash ? conversation.hash : conversation.label"
+                       :conversation-data="conversation"
+                       :show-pinned="conversation.pinned && !showConversationCategories"
+                       :archive="isArchive"
+                       :small="small"
+            />
         </transition-group>
 
-        <button tag="button" class="compose mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored" @click="$router.push('/compose');" :style="composeStyle" v-if="!small" v-mdl>
+        <button v-if="!small" v-mdl tag="button" class="compose mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored" :style="composeStyle" @click="$router.push('/compose');">
             <i class="material-icons md-light">add</i>
         </button>
     </div>
@@ -26,25 +34,101 @@
 
 <script>
 import Vue from 'vue';
-import { i18n } from '@/utils'
-import Hash from 'object-hash'
-import { Util, Api, SessionCache, TimeUtils } from '@/utils'
-import ConversationItem from './ConversationItem.vue'
-import DayLabel from './DayLabel.vue'
-import Spinner from '@/components/Spinner.vue'
-import emojione from 'emojione'
+import { i18n } from '@/utils';
+import Hash from 'object-hash';
+import { Util, Api, SessionCache, TimeUtils } from '@/utils';
+import ConversationItem from './ConversationItem.vue';
+import DayLabel from './DayLabel.vue';
+import Spinner from '@/components/Spinner.vue';
+import joypixels from 'emoji-toolkit';
 
 export default {
-    name: 'conversations',
+    name: 'Conversations',
+
+    components: {
+        ConversationItem,
+        DayLabel,
+        Spinner
+    },
     props: ['small', 'index', 'folderId', 'folderName'],
+
+    data () {
+        return {
+            title: "",
+            loading: true,
+            conversations: [],
+            unFilteredAllConversations: [],
+            margin: 0,
+            searchClicked: false,
+            searchQuery: ""
+        };
+    },
+
+    computed: {
+        isArchive () {
+            return this.index == "index_archived";
+        },
+
+        composeStyle () {
+            return "background: " + this.$store.state.colors_accent + ";";
+        },
+
+        showSearch () {
+            return this.searchClicked && !this.small;
+        },
+
+        showConversationCategories () {
+            return this.$store.state.theme_conversation_categories;
+        }
+    },
+
+    watch: {
+        '$route' (to, from) { // Update index on route change
+
+            // Only update if list page
+            if (to.name != from.name && to.name.indexOf('conversations-list') >= 0) {
+                this.conversations = [];
+                this.unFilteredAllConversations = [];
+
+                this.fetchConversations();
+            }
+
+        },
+
+        '$store.state.theme_conversation_categories' () {
+            this.processConversations(this.unFilteredAllConversations, true);
+        },
+
+        "searchQuery" (to) {
+            to = to.toLowerCase();
+            let filteredConversations = [];
+
+            for (let i in this.unFilteredAllConversations) {
+                let conversation = this.unFilteredAllConversations[i];
+
+                if (typeof conversation == "function") {
+                    continue;
+                }
+
+                if (conversation.title.toLowerCase().indexOf(to) > -1 ||
+                        conversation.snippet.toLowerCase().indexOf(to) > -1 ||
+                        conversation.phone_numbers.indexOf(to) > -1) {
+                    filteredConversations.push(conversation);
+                }
+            }
+
+            this.processConversations(filteredConversations, false);
+        }
+    },
 
     mounted () {
         this.$store.state.msgbus.$on('newMessage', this.updateConversation);
         this.$store.state.msgbus.$on('conversationRead', this.updateRead);
         this.$store.state.msgbus.$on('removedConversation', this.fetchConversations);
         this.$store.state.msgbus.$on('refresh-btn', this.refresh);
-        this.$store.state.msgbus.$on('newMargin', this.updateMargin);
         this.$store.state.msgbus.$on('search-btn', this.toggleSearch);
+        this.$store.state.msgbus.$on('searchUpdated', this.searchUpdated);
+        this.$store.state.msgbus.$on('newMargin', this.updateMargin);
 
         this.fetchConversations();
 
@@ -62,17 +146,12 @@ export default {
     },
 
     beforeDestroy () {
-        // when coming from a thread, back to the conversation list, this beforeDestory
-        // was getting called after the mounted callback, which erased the bus functionality.
-        // when it is mounted, it is overriding the old action, anyways.
-
-        if (!this.small) {
-            this.$store.state.msgbus.$off('newMessage')
-            this.$store.state.msgbus.$off('conversationRead')
-            this.$store.state.msgbus.$off('refresh-btn');
-            this.$store.state.msgbus.$off('search-btn');
-            this.$store.state.msgbus.$off('newMargin');
-        }
+        this.$store.state.msgbus.$off('newMessage', this.updateConversation);
+        this.$store.state.msgbus.$off('conversationRead', this.updateRead);
+        this.$store.state.msgbus.$off('removedConversation', this.fetchConversations);
+        this.$store.state.msgbus.$off('refresh-btn', this.refresh);
+        this.$store.state.msgbus.$off('search-btn', this.toggleSearch);
+        this.$store.state.msgbus.$off('newMargin', this.updateMargin);
     },
 
     methods: {
@@ -89,7 +168,7 @@ export default {
             }
 
             // Start query
-            Api.fetchConversations(this.index, this.folderId)
+            Api.conversations.getList(this.index, this.folderId)
                 .then(response => this.processConversations(response));
         },
 
@@ -99,13 +178,15 @@ export default {
                 this.unFilteredAllConversations = response;
             }
 
+            let unreadCount = 0;
+
             const updatedConversations = [];
 
             const cache = [];
             const titles = [];
 
             for(let i in response) {
-                const item = response[i]
+                const item = response[i];
                 if (typeof item == "function") {
                     continue;
                 }
@@ -115,13 +196,19 @@ export default {
                 if (titles.indexOf(title) == -1) {
                     titles.push(title);
 
-                    updatedConversations.push({
-                        label: title,
-                        hash: Hash(title)
-                    });
+                    if (this.showConversationCategories) {
+                        updatedConversations.push({
+                            label: title,
+                            hash: Hash(title)
+                        });
+                    }
                 }
 
-                updatedConversations.push(item)
+                // Update unread count
+                if (!item.read && (!this.index || this.index == "index_public_unarchived"))
+                    unreadCount++;
+
+                updatedConversations.push(item);
 
                 // Save to contact cache
                 cache.push(
@@ -143,6 +230,10 @@ export default {
             this.loading = false;
             this.$store.commit('conversations', cache);
             this.conversations = updatedConversations;
+
+            // Set unread, only on unarchived public index
+            if (!this.index || this.index == "index_public_unarchived")
+                this.$store.commit('unread_count', unreadCount);
 
             if (!this.small) {
                 this.$store.commit("loading", false);
@@ -171,8 +262,14 @@ export default {
                 return false;
             }
 
+            // Increment unread, only on unarchived public index
+            if (conv.read != event_obj.read && !event_obj.read
+                && (!this.index || this.index == "index_public_unarchived"))
+                this.$store.commit('increment_unread_count'); // Increment unread
+
+
             // Generate new snippet
-            let new_snippet = emojione.unicodeToImage(Util.generateSnippet(event_obj));
+            let new_snippet = joypixels.toImage(Util.generateSnippet(event_obj));
 
             conv.snippet = new_snippet;
             conv.read = event_obj.read;
@@ -181,35 +278,49 @@ export default {
 
             // Get start index (index after pinned items)
             let startIndex = 0;
-            if (this.conversations[0].label == "Pinned" && !conv.pinned) { // If there are any pinned items
-                this.conversations.some( (conv, i) => {
-                    if (typeof conv.label != "undefined" // Loop until we find a label
-                        && conv.label != "Pinned") { // That is not "pinned"
+            if (this.showConversationCategories) {
+                if (this.conversations[0].label == "Pinned" && !conv.pinned) { // If there are any pinned items
+                    this.conversations.some( (conv, i) => {
+                        if (typeof conv.label != "undefined" // Loop until we find a label
+                            && conv.label != "Pinned") { // That is not "pinned"
 
-                        startIndex = i; // Save index and return
-                        return true
-                    }
-                })
+                            startIndex = i; // Save index and return
+                            return true;
+                        }
+                    });
+                }
+            } else {
+                if (this.conversations[0].pinned && !conv.pinned) { // If there are any pinned items
+                    this.conversations.some( (conv, i) => {
+                        if (!conv.pinned) { // That is not "pinned"
+                            startIndex = i; // Save index and return
+                            return true;
+                        }
+                    });
+                }
             }
 
             // Move conversation if required
-            if (conv_index != startIndex + 1) {
-                conv = this.conversations.splice(conv_index, 1)[0]
+            let showCategoryOffset = (this.showConversationCategories ? 1 : 0);
+            if (conv_index != startIndex + showCategoryOffset) {
+                conv = this.conversations.splice(conv_index, 1)[0];
 
                 // If top label is not "Today"
                 // This isn't elegant, but it works
                 if (this.conversations[startIndex].label != "Today"
-                    && this.conversations[startIndex].label != "Pinned") {
+                    && this.conversations[startIndex].label != "Pinned"
+                    && this.showConversationCategories) {
                     const title = "Today"; // Define title
                     const label = {        // And Define Label
                         label: title,
                         hash: Hash(title)
-                    }
+                    };
 
                     // Push label and conversation
-                    this.conversations.splice(startIndex, 0, label, conv)
-                } else { // Else, just push the converstation to index 1 (below label)
-                    this.conversations.splice(startIndex + 1, 0, conv)
+                    this.conversations.splice(startIndex, 0, label, conv);
+                } else {
+                    // Else, just push the converstation to index 1 (below label)
+                    this.conversations.splice(startIndex + showCategoryOffset, 0, conv);
                 }
             }
 
@@ -217,14 +328,16 @@ export default {
         },
 
         updateRead (id) {
-
             let { conv, conv_index } = this.getConversation(id);
-
             if(!conv || !conv_index)
                 return false;
 
+            // Decrement unread, only on unarchived public index
+            if (!conv.read)
+                this.$store.commit('decrement_unread_count');
+
             conv.read = true;
-            conv.hash = Hash(conv)
+            conv.hash = Hash(conv);
         },
 
         getConversation(id) {
@@ -248,7 +361,7 @@ export default {
          */
         refresh () {
             //if (!this.small) // Don't clear list if using sidebar list
-                //this.conversations = [];
+            //this.conversations = [];
 
             this.loading = true;
             SessionCache.invalidateAllConversations();
@@ -257,6 +370,10 @@ export default {
 
         updateMargin (margin) {
             this.margin = margin;
+        },
+
+        searchUpdated (query) {
+            this.searchQuery = query;
         },
 
         toggleSearch () {
@@ -285,75 +402,8 @@ export default {
             else
                 return i18n.t('conversations.older');
         }
-    },
-
-    data () {
-        return {
-            title: "",
-            loading: true,
-            conversations: [],
-            unFilteredAllConversations: [],
-            margin: 0,
-            searchClicked: false,
-            searchQuery: ""
-        }
-    },
-
-    computed: {
-        isArchive () {
-            return this.index == "index_archived";
-        },
-
-        composeStyle () {
-            return "background: " + this.$store.state.colors_accent + "; " +
-                    "marginRight: " + (this.margin + 36) + "px;";
-        },
-
-        showSearch() {
-            return this.searchClicked && !this.small;
-        }
-    },
-
-    watch: {
-        '$route' (to, from) { // Update index on route change
-
-            // Only update if list page
-            if (to.name != from.name && to.name.indexOf('conversations-list') >= 0) {
-                this.conversations = [];
-                this.unFilteredAllConversations = [];
-
-                this.fetchConversations();
-            }
-
-        },
-
-        "searchQuery" (to, from) {
-            to = to.toLowerCase();
-            let filteredConversations = [];
-
-            for (let i in this.unFilteredAllConversations) {
-                let conversation = this.unFilteredAllConversations[i];
-
-                if (typeof conversation == "function") {
-                    continue;
-                }
-
-                if (conversation.title.toLowerCase().indexOf(to) > -1 ||
-                        conversation.snippet.toLowerCase().indexOf(to) > -1) {
-                    filteredConversations.push(conversation);
-                }
-            }
-
-            this.processConversations(filteredConversations, false);
-        }
-    },
-
-    components: {
-        ConversationItem,
-        DayLabel,
-        Spinner
     }
-}
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
@@ -376,6 +426,7 @@ export default {
 
     #conversation-list {
         width: 100%;
+        margin-left: 6px;
         margin-top: 36px !important;
 
         .spinner {
